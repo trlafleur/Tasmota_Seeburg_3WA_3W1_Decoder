@@ -1,0 +1,1 @@
+# Tasmota_Seeburg_3WA_3W1_Decoder
