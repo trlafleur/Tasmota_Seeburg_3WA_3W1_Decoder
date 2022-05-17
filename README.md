@@ -26,8 +26,9 @@ This program expects a pulse on a pin from a Seeburg 3WA or 3W1 Wallbox...
 it decodes the pulses and sends the decoded information on as an MQTT JSON object
   
 It supports the 3WA-200 or the 3W1-100 wallboxies. One or the other is selected
-in the configure module or template. 'Seeburg 3WA' or 'Seeburg 3W1'. There is also 
-a status LED that toggles on every pulse edge. 'Seeburg LED'
+in the configure module or template. 'Seeburg 3WA' or 'Seeburg 3W1'. 
+
+There is also a status LED that toggles on every pulse edge. 'Seeburg LED'
  
 The wallboxes send out a 24V AC pulse, that must be rectified and converted to 3.3v.
 
