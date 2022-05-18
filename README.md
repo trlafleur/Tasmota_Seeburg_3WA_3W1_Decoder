@@ -44,7 +44,6 @@ MQTT JSON frame:
   "Wallbox":{
       "Number_Index":10,
       "Letter_Index":1,
-      "Model":"3W1",
       "Selection_Index":10,
       "Selection":"A10"
    }
@@ -54,7 +53,8 @@ MQTT JSON frame:
   {
    "Time":"2022-05-17T10:54:28",
    "Wallbox":{
-      "Last_Selection":"A10"
+       "Model":"3W1",
+       "Last_Selection":"A10"
    }
   }
   
