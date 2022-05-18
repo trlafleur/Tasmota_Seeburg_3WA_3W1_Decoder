@@ -224,6 +224,7 @@ static void wb_pulse_timer_func(void* arg)
 #endif
 
     wb_pulse_list_clear();
+    SBLedState  =  false;
 
     if (result) 
     {
@@ -569,8 +570,8 @@ void SB_EVERY_SECOND(void)
       Response_P(PSTR("{\"Wallbox\":{"));
       ResponseAppend_P(PSTR("\"Number_Index\":%u,"), number );
       ResponseAppend_P(PSTR("\"Letter_Index\":%u,"), letter_count );
-      if (wb_active_type == SEEBURG_3W1_100)  ResponseAppend_P(PSTR("\"Model\":\"%s\","), "3W1" );
-      if (wb_active_type == SEEBURG_V3WA_200) ResponseAppend_P(PSTR("\"Model\":\"%s\","), "3WA" );
+      //if (wb_active_type == SEEBURG_3W1_100)  ResponseAppend_P(PSTR("\"Model\":\"%s\","), "3W1" );
+      //if (wb_active_type == SEEBURG_V3WA_200) ResponseAppend_P(PSTR("\"Model\":\"%s\","), "3WA" );
       ResponseAppend_P(PSTR("\"Selection_Index\":%u,"), letter_count * number );
       ResponseAppend_P(PSTR("\"Selection\":\"%c%u\""), letter, number );
       ResponseJsonEndEnd();
@@ -594,6 +595,8 @@ void SB_Show(bool json)
        if (json)                // send MQTT
        {
         ResponseAppend_P(PSTR(",\"Wallbox\":{"));
+        if (wb_active_type == SEEBURG_3W1_100)  ResponseAppend_P(PSTR("\"Model\":\"%s\","), "3W1" );
+        if (wb_active_type == SEEBURG_V3WA_200) ResponseAppend_P(PSTR("\"Model\":\"%s\","), "3WA" );
         ResponseAppend_P(PSTR("\"Last_Selection\":\"%c%u\""), letter, number);
         ResponseJsonEnd();
 
