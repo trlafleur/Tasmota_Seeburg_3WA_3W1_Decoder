@@ -34,6 +34,8 @@ The wallboxes send out a 24V AC pulse, that must be rectified and converted to 3
 
  
 It makes use of a FreeRTOS software timer, to timeout improper pulse streams.
+
+ToDo:   Connect via Berry to Tasmota MP3 player
   
 ~~~
 MQTT JSON frame:
@@ -72,8 +74,15 @@ https://web.archive.org/web/20210308161120/http://wallbox.weebly.com/1-interfaci
 https://github.com/CottonThePirate/wallboxController
 https://www.mikesarcade.com/arcade/titlestrips.html
 https://www.dropbox.com/sh/0fbnbqzyi3citzt/AAD7SpEoWXZuEbpDUHgknUwDa?dl=0
-htps://jukeboxaddicts.proboards.com/thread/1412/seeburg-sch1-4-apu-missing?page=2
+https://jukeboxaddicts.proboards.com/thread/1412/seeburg-sch1-4-apu-missing?page=2
 https://github.com/dkonigsberg/wallbox-board
+https://wiki.dfrobot.com/DFPlayer_Mini_SKU_DFR0299
+https://github.com/PowerBroker2/DFPlayerMini_Fast
+https://blog.michaelamerz.com/wordpress/seeburg-wall-o-matic-counting-pulses-on-esp-8266/
+https://www.kerryveenstra.com/2017/12/15/dusty-diners-juke-o-matic/
+https://github.com/Abac71/Seeburg-IO/
+https://walljuke.com/the-walljuke-manual/
+https://arduinoplusplus.wordpress.com/2018/07/23/yx5300-serial-mp3-player-catalex-module/
 ~~~
 
 There is a very small chance of a race condition, from when the code has finish decoding the pulse stream 
