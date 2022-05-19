@@ -278,7 +278,7 @@ bool wb_pulse_list_tally_v3wa_200(char *letter, uint32_t *number)
 
     // convert pulses to numeric values
     letter_val = WB_LETTERS[p1 - 2];
-    letter_count = p1;
+    letter_count = p1 - 1;
     number_val = p2;
 
     if (letter && number)
