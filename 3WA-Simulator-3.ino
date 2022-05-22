@@ -7,7 +7,8 @@
  *  DATE         REV  DESCRIPTION
  *  -----------  ---  ----------------------------------------------------------
  *  18-May-2022  1.0   TRL - first build
- *
+ *  21-May-2022. 1.0a. TRL - added random selection
+ *  
  *  Notes:  1)  Ardunio 2.0.0rc6
  *          2)  ESP32
  *
@@ -55,7 +56,7 @@
  */
 
 #define Seeburg3WA                 // if defined, Seeburg 3WA, if not 3W1
-
+#define UseRandom 
 #include <Arduino.h>
 
 // Attach a output pin to a GPIO 
@@ -68,20 +69,20 @@
 #define NumberCode       8
 
 #ifdef Seeburg3WA                   // Seeburg 3WA 200
-uint32_t Number_Count;              // 1 = A  .... to 10 = K, (No "I")             
-uint32_t Letter_Count;
 uint32_t MS = 45;
 uint32_t GAP = 30;
 uint32_t number_gap = 170;
 
 #else                               // Seeburg 3A1 100 
-uint32_t Number_Count;              // 1 = A  .... to 10 = K, (No "I")             
-uint32_t Letter_Count;
 uint32_t MS = 45;
 uint32_t GAP = 30;
 uint32_t letter_gap = 170;
 #endif
 
+uint32_t Number_Count;              // 1 = A  .... to 10 = K, (No "I")             
+uint32_t Letter_Count;
+uint32_t TotalTime;
+uint32_t RandNumber;
 
 #ifdef Seeburg3WA
 /* *************************************** */
@@ -226,7 +227,7 @@ void setup()
 #endif
 }
 
-uint32_t TotalTime;
+
 /* *************************************** */
 /* *************** Loop ****************** */
 /* *************************************** */
@@ -234,6 +235,19 @@ void loop()
 {
   TotalTime = millis();
 #ifdef Seeburg3WA
+
+#ifdef UseRandom
+      RandNumber = random(0, 199);
+      
+      Letter_Count = (RandNumber / 10) + 1;
+      if ( Letter_Count < 1) Letter_Count = 1;    // these are not needd, but we will keep them...
+      if ( Letter_Count > 20) Letter_Count = 20;
+      
+      Number_Count = (RandNumber % 10) + 1; 
+       
+      printf("R: %u, letter: %u, number: %u\r", RandNumber, Letter_Count, Number_Count);
+#endif
+
   uint32_t Letter = Letter_Count;
   if (Letter > 8)         Letter = Letter +1;
   if (Letter_Count > 13)  Letter = Letter +1;
@@ -241,6 +255,18 @@ void loop()
   Pulse_3AW (Number_Count, Letter_Count, MS, GAP);     // Send pulse's
 
 #else
+#ifdef UseRandom
+      RandNumber = random(0, 99);
+      
+      Letter_Count = (RandNumber / 10) + 1;
+      if ( Letter_Count < 1) Letter_Count = 1;    // these are not needd, but we will keep them...
+      if ( Letter_Count > 10) Letter_Count = 10;
+      
+      Number_Count = (RandNumber % 10) + 1; 
+       
+      printf("R: %u, letter: %u, number: %u\r", RandNumber, Letter_Count, Number_Count);
+#endif
+  
   uint32_t Letter = Letter_Count;
   if (Letter > 8)   Letter = Letter +1;
   printf("\r\n*** 3W1 Sending: %c%u\r\n", (Letter | 0x40), Number_Count);
