@@ -24,6 +24,8 @@
  *  DATE         REV  DESCRIPTION
  *  -----------  ---  ----------------------------------------------------------
  *  12-May-2022  1.0   TRL - first build
+ *  18-May-2022  1.0a  Update comments and re-sync LED if needed
+ *  24-May-2022  1.0b  Fixed timeout timer
  *
  *  Notes:  1)  Tested with TASMOTA  11.0.0.3
  *          2)  ESP32, ESP32S3
@@ -31,7 +33,8 @@
  *
  *    TODO:
  *          1)  Add coin relay outputs, with MQTT commands.
- *          2)
+ *          2)  
+ *          3)
  *
  *    tom@lafleur.us
  *
@@ -61,7 +64,6 @@
  * "Wallbox":{
  *     "Number_Index":10,
  *     "Letter_Index":1,
- *     "Model":"3W1",
  *     "Selection_Index":10,
  *     "Selection":"A10"
  *  }
@@ -70,16 +72,17 @@
  * ---- At Telemetry period
  * {
  *  "Time":"2022-05-17T10:54:28",
-  * "Wallbox":{
+ *   "Wallbox":{
+ *     "Model":"3W1",
  *     "Last_Selection":"A10"
  *  }
  * }
  * 
  * 
  * 
- *   There is a very small chance of a race condition, from when the code has finish decodeing 
- *    the pulse stream in the ISR unitil we send the data out on the one second loop. One could  
- *    quickley push another set of button during that time missing a selection, but unlikely.
+ *   There is a very small chance of a race condition, from when the code has finish decoding 
+ *    the pulse stream in the ISR until we send the data out on the one second loop. One could  
+ *    quickly push another set of button during that time missing a selection, but unlikely.
  * 
  *   
  *
@@ -100,7 +103,7 @@ D_SENSOR_SB_3WA "|" D_SENSOR_SB_3W1 "|" D_SENSOR_SB_LED "|"     // <------------
 
 line 469
 #ifdef USE_SB3Wx
-  AGPIO(GPIO_SB_3WA),                  // xsns_123         // <---------------  TRL
+  AGPIO(GPIO_SB_3WA),                  // xsns_123              // <---------------  TRL
   AGPIO(GPIO_SB_3W1),
   AGPIO(GPIO_SB_LED),
 #endif
@@ -117,16 +120,16 @@ at line 865
 #define XSNS_123 123
 
 /*********************************************************************************************\
- * Seeburg 3Wa and 3w1 wallbox decoder to MQTT
+ * Seeburg 3WA and 3w1 wallbox decoder to MQTT
 \*********************************************************************************************/
 
 /* ********************************************** */
 // Forward references
 void wb_pulse_list_clear();
 bool wb_pulse_list_tally_3w1_100(char *letter, uint32_t *number);
-bool wb_pulse_list_tally_v3wa_200(char *letter, uint32_t *number);
+bool wb_pulse_list_tally_3wa_200(char *letter, uint32_t *number);
 void wp_pulse_gpio_intr_handler(void *arg);
-static void wb_pulse_timer_func(void *arg);
+void wb_pulse_timer_func(void* arg);  // void* arg
 
 
 /* ******************************************************** */
@@ -150,27 +153,61 @@ typedef enum wallbox_type
 #define D_Wallbox "Wallbox"
 
 const char  WB_LETTERS[] = "ABCDEFGHJKLMNPQRSTUV";         // missing 'I' and 'O'
-volatile    bool SBLedState = false;
-volatile    bool MQTT_Send_Flag = false;
-volatile    wallbox_type wb_selected_type;
-volatile    wallbox_type wb_active_type;
 
-uint32_t    wb_pulse_last_value;
-uint32_t    wb_pulse_last_time;
+volatile    bool          SBLedState = false;
+volatile    bool          MQTT_Send_Flag = false;
+volatile    uint32_t      wb_pulse_last_value;
+volatile    uint32_t      wb_pulse_last_time;
+volatile    uint32_t      wb_pulse_index;
+
 wb_selection_pulse wb_pulse_list[MAX_WB_SELECTION_PULSES];
-uint32_t    wb_pulse_index;
-uint32_t    wb_pulse_timer;
-uint32_t    timeout = 3000;
-  
-char      letter;
-uint32_t  letter_count;
-uint32_t  number;
 
-//os_timer_t wb_pulse_timer;
+wallbox_type  wb_selected_type;
+wallbox_type  wb_active_type;
+uint32_t      wb_pulse_timer;
+uint32_t      timeout = 3000;
+char          letter;
+uint32_t      letter_count;
+uint32_t      number;
 
-// FreeRTOS Timer...
-TimerHandle_t  xOneShotTimer;
-BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+#include "esp_timer.h"
+esp_timer_handle_t _timer;
+
+
+/* ******************************************************** */
+void Ticker_detach() 
+{
+  if (_timer) 
+  {
+    esp_timer_stop(_timer);
+    esp_timer_delete(_timer);
+    _timer = nullptr;
+  }
+}
+
+
+/* ******************************************************** */
+void Ticker_attach_ms(uint32_t milliseconds, bool repeat, esp_timer_cb_t callback, uint32_t arg) 
+{
+  esp_timer_create_args_t _timerConfig;
+  _timerConfig.arg = reinterpret_cast<void*>(arg);
+  _timerConfig.callback = callback;
+  _timerConfig.dispatch_method = ESP_TIMER_TASK;
+  _timerConfig.name = "SB_Ticker";
+
+  if (_timer) 
+  {
+    esp_timer_stop(_timer);
+    esp_timer_delete(_timer);
+  }
+
+  esp_timer_create(&_timerConfig, &_timer);
+
+  if (repeat) 
+    {esp_timer_start_periodic(_timer, milliseconds * 1000ULL);} 
+  else 
+    {esp_timer_start_once(_timer, milliseconds * 1000ULL);}
+}
 
 
 /* ******************************************************** */
@@ -182,36 +219,27 @@ void wb_pulse_list_clear()
 
 
 /* ******************************************************** */
-// this is called from an ISR!!
-static void wb_pulse_timer_func(void* arg)
+// this is called from timer timeout...
+void wb_pulse_timer_func(void* arg)
 {
     bool result;
 
     noInterrupts();                                 // Disable interrupts while we process the results
 
     // lets stop the timer...
-    if( xTimerStopFromISR ( xOneShotTimer, &xHigherPriorityTaskWoken ) != pdPASS)
-      {
-        // The command to stop the timers was not executed successfully.
-        AddLog( LOG_LEVEL_INFO, PSTR("---> ERROR Timer Stop @ 156!"));
-      }
-      // force a task switch if needed...  (this may be an issue in ISR??...)
-      if( xHigherPriorityTaskWoken != pdFALSE ) {taskYIELD();}
-
-      //os_timer_disarm(&wb_pulse_timer);               // <------------------- TRL
+    Ticker_detach();                                // <------------------- TRL
 
     if (wb_active_type == SEEBURG_3W1_100) 
     { result = wb_pulse_list_tally_3w1_100(&letter, &number);}
 
     else if(wb_active_type == SEEBURG_V3WA_200) 
-    { result = wb_pulse_list_tally_v3wa_200(&letter, &number);} 
+    { result = wb_pulse_list_tally_3wa_200(&letter, &number);} 
 
     else 
     {
       result = false;                         // wallbox selection error if here
-      AddLog( LOG_LEVEL_INFO, PSTR("%s"), "---> Error, No Wallbox Selected!\n");
+      AddLog( LOG_LEVEL_INFO, PSTR("%s"), "---> Error --> No Wallbox Selected!\n");
     }
-
 
 #if 0
     uint32_t i;
@@ -246,10 +274,10 @@ static void wb_pulse_timer_func(void* arg)
 /* ******************************************************** */
 /*
  * Count the signal pulses.
- * Wallbox: Seeburg Wall-O-Matic V-3WA 200
+ * Wallbox: Seeburg Wall-O-Matic 3WA 200
  */
 // This is called from an ISR
-bool wb_pulse_list_tally_v3wa_200(char *letter, uint32_t *number)
+bool wb_pulse_list_tally_3wa_200(char *letter, uint32_t *number)
 {
     uint32_t i;
     uint32_t p1 = 0;
@@ -278,7 +306,7 @@ bool wb_pulse_list_tally_v3wa_200(char *letter, uint32_t *number)
 
     // convert pulses to numeric values
     letter_val = WB_LETTERS[p1 - 2];
-    letter_count = p1 - 1;
+    letter_count = p1-1;
     number_val = p2;
 
     if (letter && number)
@@ -293,7 +321,7 @@ bool wb_pulse_list_tally_v3wa_200(char *letter, uint32_t *number)
 /* ******************************************************** */
 /*
  * Count the signal pulses.
- * Wallbox: Seeburg Wall-O-Matic 3W-1 100
+ * Wallbox: Seeburg Wall-O-Matic 3W1 100
  */
 // This is called from an ISR
 bool wb_pulse_list_tally_3w1_100(char *letter, uint32_t *number)
@@ -362,6 +390,7 @@ bool wb_pulse_list_tally_3w1_100(char *letter, uint32_t *number)
     return true;
 }
 
+
 /* ******************************************************** */
 /* ******************************************************** */
 /* ********************** ISR ***************************** */
@@ -376,7 +405,7 @@ void IRAM_ATTR SB_Isr(void)
     digitalWrite(Pin(GPIO_SB_LED), SBLedState);
   } 
 
-  timeout = 3000;                               // cycle time is ~2100ms, so we set timeout to 3000ms
+  timeout = 3000;                                 // cycle time is ~2100ms, so we set timeout to 3000ms
 
   if (PinUsed(GPIO_SB_3W1)) currentPulseValue = digitalRead(Pin(GPIO_SB_3W1));
   if (PinUsed(GPIO_SB_3WA)) currentPulseValue = digitalRead(Pin(GPIO_SB_3WA));
@@ -393,15 +422,7 @@ void IRAM_ATTR SB_Isr(void)
   if(currentPulseValue != wb_pulse_last_value) 
   {      
     // lets stop the timer...
-    if( xTimerStopFromISR ( xOneShotTimer, &xHigherPriorityTaskWoken ) != pdPASS)
-      {
-        // The command to stop the timers was not executed successfully.
-        AddLog( LOG_LEVEL_INFO, PSTR("---> ERROR Timer Stop @ 384!"));
-      }
-      // force a task switch if needed... (this may be an issue in ISR??...)
-      if( xHigherPriorityTaskWoken != pdFALSE ) {taskYIELD();}
-      
-    //os_timer_disarm(&wb_pulse_timer);         // <-------------------- TRL
+    Ticker_detach();                              // <-------------------- TRL
 
     uint32_t elapsed = currentPulseTime - wb_pulse_last_time;
     if (currentPulseValue == 1) 
@@ -462,13 +483,13 @@ void IRAM_ATTR SB_Isr(void)
     if (wb_active_type == SEEBURG_3W1_100) 
       {
         if (wb_pulse_list_tally_3w1_100(0, 0)) 
-        { timeout = 250; }
+            {timeout = 250;}
       } 
       
       else if(wb_active_type == SEEBURG_V3WA_200) 
       {
-        if (wb_pulse_list_tally_v3wa_200(0, 0)) 
-        {timeout = 250;}
+        if (wb_pulse_list_tally_3wa_200(0, 0)) 
+            {timeout = 250;}
       } 
       
       else 
@@ -481,25 +502,10 @@ void IRAM_ATTR SB_Isr(void)
     wb_pulse_last_value = currentPulseValue;
     wb_pulse_last_time  = currentPulseTime; 
     
+
     // this will start or restart our timer
-    if( xTimerChangePeriodFromISR( xOneShotTimer, pdMS_TO_TICKS(timeout), &xHigherPriorityTaskWoken ) != pdPASS )
-    {
-        // The command to change the timers period was not executed successfully.
-        AddLog( LOG_LEVEL_INFO, PSTR("---> ERROR Timer Restart!"));
-    }
-    // force a task switch if needed...
-     if( xHigherPriorityTaskWoken != pdFALSE ) {taskYIELD();}
-
-    //os_timer_setfn(&wb_pulse_timer, (os_timer_func_t *)c, /*arg*/NULL);
-    //os_timer_arm(&wb_pulse_timer, timeout, 0);
+    Ticker_attach_ms(timeout, false, wb_pulse_timer_func, 0);   // <------------------ TRL
   }
-}
-
-
-/* ******************************************************** */
-bool SB_PinState(void)
-{
-   return false;
 }
 
 
@@ -516,8 +522,6 @@ void SB_Init(void)
 
   if (PinUsed(GPIO_SB_3WA) || PinUsed(GPIO_SB_3W1)) 
   {
-    //AddLog( LOG_LEVEL_DEBUG, PSTR("%s"), "*** In SB_Init!");
-
     // Initialize state variables
     wb_pulse_last_value = 0;
     wb_pulse_last_time  = micros();
@@ -547,12 +551,6 @@ void SB_Init(void)
         attachInterrupt(Pin(GPIO_SB_3W1), SB_Isr, CHANGE);
       }
     }
-
-  // set up a FreeRTOS one-shot timer, this is use to timeout a incomplete pulse set from wallbox
-  xOneShotTimer = xTimerCreate ( "SB_x123", pdMS_TO_TICKS( timeout ), pdFALSE, 0, wb_pulse_timer_func );
-  /* Check the software timers were created. */
-  if ( xOneShotTimer == NULL ) AddLog( LOG_LEVEL_INFO, PSTR("---> ERROR Timer Not Create!"));
-  
   }
 }   // end of: void SB_Init(void)
 
@@ -561,17 +559,15 @@ void SB_Init(void)
 /* ******************************************************** */
 void SB_EVERY_SECOND(void)
 {
-   if (PinUsed(GPIO_SB_3WA) || PinUsed(GPIO_SB_3W1))                              // check to make sure we have a pin assigned
+   if (PinUsed(GPIO_SB_3WA) || PinUsed(GPIO_SB_3W1))    // check to make sure we have a pin assigned
    {
-     if (MQTT_Send_Flag == true)                  // send MQTT event...
+     if (MQTT_Send_Flag == true)                        // send MQTT event...
      {
       MQTT_Send_Flag = false;
       ResponseClear();
       Response_P(PSTR("{\"Wallbox\":{"));
       ResponseAppend_P(PSTR("\"Number_Index\":%u,"), number );
       ResponseAppend_P(PSTR("\"Letter_Index\":%u,"), letter_count );
-      //if (wb_active_type == SEEBURG_3W1_100)  ResponseAppend_P(PSTR("\"Model\":\"%s\","), "3W1" );
-      //if (wb_active_type == SEEBURG_V3WA_200) ResponseAppend_P(PSTR("\"Model\":\"%s\","), "3WA" );
       ResponseAppend_P(PSTR("\"Selection_Index\":%u,"), ((letter_count - 1) * 10) + number );
       ResponseAppend_P(PSTR("\"Selection\":\"%c%u\""), letter, number );
       ResponseJsonEndEnd();
@@ -581,9 +577,6 @@ void SB_EVERY_SECOND(void)
    }             
 }   // end of: SBCtrEverySecond(void)
  
-
-/* ******************************************************** */
-
 
 /************************************************************\
  * MQTT and Webserver display
@@ -681,7 +674,6 @@ bool Xsns123(uint8_t function)
 #endif // USE_WEBSERVER
 
       case FUNC_PIN_STATE:
-      // AddLog( LOG_LEVEL_INFO, PSTR("%s:"), " In Function Pin State");
       break;
     }
   }
@@ -691,3 +683,4 @@ bool Xsns123(uint8_t function)
 #endif    // end of USE_SB3Wx
 
 /* ************************* The Very End ************************ */
+
