@@ -44,11 +44,11 @@
  *  The Seebug 3WA wallbox is for 200 selections.
  *  A-V 1-20 (no I or O) for Letters and 1-10 for number
  *  
- *  It sends a series of pulses of about 45ms on and 30ms off. Total of ~60ms
+ *  It sends a series of pulses of about 45ms on and 30ms off. Total of ~75ms
  *  One cycle time is ~2100ms...
  *  
- *  The first set of pulses is for the letter code and is from 2 to 21 pulses, 
- *  Then a start pulse is added to the series.
+ *  The first set of pulses is for the letter code and is from 1 to 20 pulses, 
+ *  Then a start pulse is added to the series. For a Max of 21 pulses.
  *  
  *  Then a gap of about 200ms
  *  
@@ -129,7 +129,7 @@ void Pulse_3AW (uint32_t number_count, uint32_t letter_count, uint32_t MS, uint3
 void Pulse_3A1 (uint32_t number_count, uint32_t letter_count, uint32_t MS, uint32_t GAP)
 {   
   bool even_letter = false;
-  // A-C-E-G-J = odd, then it send one long pulse, B-D-F-H-K = true, then we send a series of 11 pulse'e
+  // A-C-E-G-J = odd, then it send one long pulse, B-D-F-H-K = true, then we send a series of 11 pulse's
   if (letter_count % 2 == 0)     even_letter = true;    // even (B-D-F-H-K)
     
     for (uint32_t i = 1; i <= 11; ++i)
@@ -155,7 +155,7 @@ void Pulse_3A1 (uint32_t number_count, uint32_t letter_count, uint32_t MS, uint3
 
     digitalWrite(Output_PIN, 0);
     
-  // This select the correct number of pulse for letter code...
+  // This select the correct number of pulses for letter code...
   // a-b = 1, c-d = 2...    
     switch ( Letter_Count )
     {
@@ -240,7 +240,7 @@ void loop()
       RandNumber = random(0, 199);
       
       Letter_Count = (RandNumber / 10) + 1;
-      if ( Letter_Count < 1) Letter_Count = 1;    // these are not needd, but we will keep them...
+      if ( Letter_Count < 1) Letter_Count = 1;    // these are not needed, but we will keep them...
       if ( Letter_Count > 20) Letter_Count = 20;
       
       Number_Count = (RandNumber % 10) + 1; 
@@ -259,7 +259,7 @@ void loop()
       RandNumber = random(0, 99);
       
       Letter_Count = (RandNumber / 10) + 1;
-      if ( Letter_Count < 1) Letter_Count = 1;    // these are not needd, but we will keep them...
+      if ( Letter_Count < 1) Letter_Count = 1;    // these are not needed, but we will keep them...
       if ( Letter_Count > 10) Letter_Count = 10;
       
       Number_Count = (RandNumber % 10) + 1; 
