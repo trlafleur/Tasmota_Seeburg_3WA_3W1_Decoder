@@ -3,43 +3,43 @@ This allows them and their friends to play whatever they wanted... but as time g
 up and moved away... (hard to believe...)
 
 So it has been sitting unused for years... As I keep seeing it unused, I keep thinking about what to do with it... 
-Well, Tasmota came to the rescue....
+Well, Tasmota came to the rescue...
 
 I found a number of references to projects with the Seeburg wallbox, many are listed below. But Derek Konigs post at:
 ~~~
-   http://hecgeek.blogspot.com/2017/10/wall-o-matic-interface-1.html
+   http://hecgeek.blogspot.com/2017/10/wall-o-matic-interface-1.html
 ~~~
-has a very detailed post on how to decode and use the device to control his Sonos system. His code was developed for the ESP-8266.
+Has a very detailed post on how to decode and use the device to control his Sonos system. His code was developed for the ESP-8266.
 
-I had a number of ESP32 here running Tasmota, so I adapted his code for ESP32 under Tasmota  (Yes.. it's a learning thing...)
+I had a number of ESP32 here running Tasmota, so I adapted his code for ESP32 under Tasmota  (Yes.. it's a learning thing...)
 This was developed as a sensor under Tasmota, as pulses for the wallboxes are in the 30-50ms range and with a cycle time of ~2.1 seconds.
 
-I now use A1-->A10 to control things around the house, and B1-->V1 for music selection.
+I now use A1-->A10 to control things around the house, and B1-->V10 for music selection.
 
-It was developed under Tasmota 11.0.0.3 under Visual Studio.
+It was developed under Tasmota 11.0.0.3 under Visual Studio Code with PaltformIO.
 
-To keep my sanity, I first developed a 3WA-3W1 simulator written in C under Arduino, 
-I program this into another ESP32 to send the selection pulses to my Tasmota decoder'
-as the 3WA-200 is very noisy...
+To keep my sanity, I first developed a 3WA-3W1 emulator written in C under Arduino, 
+I program this into another ESP32 to send the selection pulses to my Tasmota decoder,
+as the 3WA-200 is very noisy... and my finger was tired of pressing the button...
 
 This program expects a pulse on a pin from a Seeburg 3WA or 3W1 Wallbox...
-it decodes the pulses and sends the decoded information on as an MQTT JSON object
-  
+it decodes the pulses and sends the decoded information as an MQTT JSON object,
+that I use in Note-Red to make decisions.
+  
 It supports the 3WA-200 or the 3W1-100 wallboxies. One or the other is selected
 in the configure module or template. 'Seeburg 3WA' or 'Seeburg 3W1'. 
 
 There is also a status LED that toggles on every pulse edge. 'Seeburg LED'
- 
+ 
 The wallboxes send out a 24V AC pulse, that must be rectified and converted to 3.3v.
-
- 
-It makes use of a FreeRTOS software timer, to timeout improper pulse streams.
+See the URL above for detail on the converter from 24VAC...
+ 
 
 ToDo:   Connect via Berry to Tasmota MP3 player
   
 ~~~
 MQTT JSON frame:
-  ---- Real Time...
+  ----> Real Time...
   {
   "Wallbox":{
       "Number_Index":10,
@@ -49,7 +49,7 @@ MQTT JSON frame:
    }
   }
   
-  ---- At Telemetry period
+  ----> At Telemetry period
   {
    "Time":"2022-05-17T10:54:28",
    "Wallbox":{
@@ -85,9 +85,9 @@ https://walljuke.com/the-walljuke-manual/
 https://arduinoplusplus.wordpress.com/2018/07/23/yx5300-serial-mp3-player-catalex-module/
 ~~~
 
-There is a very small chance of a race condition, from when the code has finish decoding the pulse stream 
-in the ISR, unitil we send the data out on the one second loop. 
-One could quickley push another set of button during that time missing a selection, but unlikely.
+There is a very small chance of a race condition, from when the code has finished decoding the pulse stream 
+in the ISR, until we send the data out on the one-second loop. 
+One could quickly push another set of buttons during that time missing a selection, but unlikely.
   
   
   
