@@ -7,9 +7,10 @@
  *  DATE         REV  DESCRIPTION
  *  -----------  ---  ----------------------------------------------------------
  *  18-May-2022  1.0   TRL - first build
- *  21-May-2022. 1.0a. TRL - added random selection
+ *  21-May-2022. 1.0a  TRL - added random selection
+ *  23-May-2022  1.0b  TRL - fixed 3W1 format
  *  
- *  Notes:  1)  Ardunio 2.0.0rc6
+ *  Notes:  1)  Ardunio 1.8.19, 2.0.0rc6
  *          2)  ESP32
  *
  *
@@ -28,13 +29,13 @@
  * The Seeburg 3W1-100 wallbox is for 100 selections.
  *  A-K (no I) and 1-10
  *  
- *  It sends a series of pulses of about 45ms on and 30ms off. Total of ~75ms
+ *  It sends a series of pulses of about 35ms on and 30ms off. Total of ~65ms
  *  One cycle time is ~2100ms...
  *  
  *  The first set of pulses is for the number and is from 1 to 10 pulses, 
  *  
  *  Then a serial of 10 more pulses if the letter code is B-D-F-H-K or
- *  if the leter code is A-C-E-G-J, then it send one long pulse of 10 * 75ms --> ~600ms
+ *  if the leter code is A-C-E-G-J, then it send one long pulse of 10 * 65ms --> ~650ms
  *  
  *  Then a gap of about 170ms
  *  
@@ -44,18 +45,18 @@
  *  The Seebug 3WA wallbox is for 200 selections.
  *  A-V 1-20 (no I or O) for Letters and 1-10 for number
  *  
- *  It sends a series of pulses of about 45ms on and 30ms off. Total of ~75ms
+ *  It sends a series of pulses of about 35ms on and 30ms off. Total of ~65ms
  *  One cycle time is ~2100ms...
  *  
- *  The first set of pulses is for the letter code and is from 1 to 20 pulses, 
- *  Then a start pulse is added to the series. For a Max of 21 pulses.
+ *  The first set of pulses is for the letter code and is from 2 to 21 pulses, 
+ *  Then a start pulse is added to the series.
  *  
  *  Then a gap of about 200ms
  *  
  *  Then a series of pulses for the number code, 1 to 10.
  */
 
-#define Seeburg3WA                 // if defined, Seeburg 3WA, if not 3W1
+//#define Seeburg3WA                 // if defined, Seeburg 3WA, if not 3W1
 #define UseRandom 
 #include <Arduino.h>
 
@@ -69,12 +70,12 @@
 #define NumberCode       8
 
 #ifdef Seeburg3WA                   // Seeburg 3WA 200
-uint32_t MS = 45;
+uint32_t MS = 35;
 uint32_t GAP = 30;
 uint32_t number_gap = 170;
 
 #else                               // Seeburg 3A1 100 
-uint32_t MS = 45;
+uint32_t MS = 35;
 uint32_t GAP = 30;
 uint32_t letter_gap = 170;
 #endif
@@ -93,7 +94,7 @@ void Pulse_3AW (uint32_t number_count, uint32_t letter_count, uint32_t MS, uint3
     // Lets send the letter pulse's 1-->20   
     for (uint32_t i = 1; i <= letter_count; ++i)
     {
-      printf("3WA Letter Pulse I1: %u\r\n", i);
+      printf("3WA Letter Pulse I1: %u\n", i);
       digitalWrite(Output_PIN, 1);
       delay (MS);
       digitalWrite(Output_PIN, 0);
@@ -101,20 +102,20 @@ void Pulse_3AW (uint32_t number_count, uint32_t letter_count, uint32_t MS, uint3
     }
 
     // Send Start pulse's
-    printf("3WA Start Pulse\r\n"); 
+    printf("3WA Start Pulse\n"); 
     digitalWrite(Output_PIN, 1);                         // Sent Start pulse
     delay (MS);
     digitalWrite(Output_PIN, 0);
     delay (GAP);
 
     // send short gap...
-    printf("3WA Number Gap\r\n");
+    printf("3WA Number Gap\n");
     delay (number_gap);
 
     // send number pulse's 1-->10
     for (uint32_t i = 1; i <= number_count; ++i)
     {
-      printf("3WA Number Pulse I2: %u\r\n", i);
+      printf("3WA Number Pulse I2: %u\n", i);
       digitalWrite(Output_PIN, 1);
       delay (MS);
       digitalWrite(Output_PIN, 0);
@@ -129,33 +130,35 @@ void Pulse_3AW (uint32_t number_count, uint32_t letter_count, uint32_t MS, uint3
 void Pulse_3A1 (uint32_t number_count, uint32_t letter_count, uint32_t MS, uint32_t GAP)
 {   
   bool even_letter = false;
-  // A-C-E-G-J = odd, then it send one long pulse, B-D-F-H-K = true, then we send a series of 11 pulse's
+  // A-C-E-G-J = odd, then it send one long pulse, B-D-F-H-K = true, then we send a series of 11 pulse'e
   if (letter_count % 2 == 0)     even_letter = true;    // even (B-D-F-H-K)
     
-    for (uint32_t i = 1; i <= 11; ++i)
-    {
-      (even_letter) ? printf("3W1 Letter Pulse I2: %u, %u\r\n", i, (uint32_t) even_letter ) : printf("3W1 Letter Gap I2: %u, %u\r\n", i, (uint32_t) even_letter );
-      digitalWrite(Output_PIN, 1);
-      delay (MS);
-      (even_letter) ? digitalWrite(Output_PIN, 0) : digitalWrite(Output_PIN, 1);
-      delay (GAP);
-    }
-    
-    printf("3W1 Number Gap\r\n");
-    delay (letter_gap);
-
+    // Number's..
     for (uint32_t i = 1; i <= number_count; ++i)
     {
-      printf("3W1 Number Pulse I1: %u\r\n", i);
+      printf("3W1 Number Pulse I1: %u\n", i);
       digitalWrite(Output_PIN, 1);
       delay (MS);
       digitalWrite(Output_PIN, 0);
       delay (GAP);
     }
 
-    digitalWrite(Output_PIN, 0);
+    for (uint32_t i = 1; i <= 11; ++i)
+    {
+      (even_letter) ? printf("3W1 Letter Gap Pulse I2: %u, %u\n", i, (uint32_t) even_letter ) : printf("3W1 Letter Gap I2: %u, %u\n", i, (uint32_t) even_letter );
+      digitalWrite(Output_PIN, 1);
+      delay (MS);
+      (even_letter) ? digitalWrite(Output_PIN, 0) : digitalWrite(Output_PIN, 1);
+      delay (GAP);
+    }
     
-  // This select the correct number of pulses for letter code...
+    digitalWrite(Output_PIN, 0);
+
+    printf("3W1 Letter Gap\n");
+    delay (letter_gap);
+
+    
+  // This select the correct number of pulse for letter code...
   // a-b = 1, c-d = 2...    
     switch ( Letter_Count )
     {
@@ -183,7 +186,7 @@ void Pulse_3A1 (uint32_t number_count, uint32_t letter_count, uint32_t MS, uint3
 
     for (uint32_t i = 1; i <= (letter_count) ; ++i)
     { 
-      printf("3W1 Letter Pulse I3: %u\r\n", i);
+      printf("3W1 Letter Pulse I3: %u\n", i);
       digitalWrite(Output_PIN, 1);
       delay (MS);
       digitalWrite(Output_PIN, 0);
@@ -240,7 +243,7 @@ void loop()
       RandNumber = random(0, 199);
       
       Letter_Count = (RandNumber / 10) + 1;
-      if ( Letter_Count < 1) Letter_Count = 1;    // these are not needed, but we will keep them...
+      if ( Letter_Count < 1) Letter_Count = 1;    // these are not needd, but we will keep them...
       if ( Letter_Count > 20) Letter_Count = 20;
       
       Number_Count = (RandNumber % 10) + 1; 
@@ -251,7 +254,7 @@ void loop()
   uint32_t Letter = Letter_Count;
   if (Letter > 8)         Letter = Letter +1;
   if (Letter_Count > 13)  Letter = Letter +1;
-  printf("\r\n*** 3WA Sending %c%u\r\n", (Letter | 0x40), Number_Count);
+  printf("\r\n*** 3WA Sending %c%u\n", (Letter | 0x40), Number_Count);
   Pulse_3AW (Number_Count, Letter_Count, MS, GAP);     // Send pulse's
 
 #else
@@ -259,17 +262,17 @@ void loop()
       RandNumber = random(0, 99);
       
       Letter_Count = (RandNumber / 10) + 1;
-      if ( Letter_Count < 1) Letter_Count = 1;    // these are not needed, but we will keep them...
+      if ( Letter_Count < 1) Letter_Count = 1;    // these are not needd, but we will keep them...
       if ( Letter_Count > 10) Letter_Count = 10;
       
       Number_Count = (RandNumber % 10) + 1; 
        
-      printf("R: %u, letter: %u, number: %u\r", RandNumber, Letter_Count, Number_Count);
+      printf("R: %u, letter: %u, number: %u\n", RandNumber, Letter_Count, Number_Count);
 #endif
   
   uint32_t Letter = Letter_Count;
   if (Letter > 8)   Letter = Letter +1;
-  printf("\r\n*** 3W1 Sending: %c%u\r\n", (Letter | 0x40), Number_Count);
+  printf("\r\n*** 3W1 Sending: %c%u\n", (Letter | 0x40), Number_Count);
   Pulse_3A1 (Number_Count, Letter_Count, MS, GAP);     // send pulse's...
  
 #endif
@@ -277,3 +280,4 @@ void loop()
   printf("Time: %ums\r\n", (millis() - TotalTime));
   delay(CycleTime);
 }
+
