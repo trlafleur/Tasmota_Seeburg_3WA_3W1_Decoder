@@ -26,9 +26,12 @@
  *  12-May-2022  1.0   TRL - first build
  *  18-May-2022  1.0a  Update comments and re-sync LED if needed
  *  24-May-2022  1.0b  Fixed timeout timer
+ *  01-Jun-2022  1.0c  Remove addlog from interrupt logic
  *
- *  Notes:  1)  Tested with TASMOTA  11.0.0.3
+ *  Notes:  1)  Tested with TASMOTA  11.1.0.3dev
  *          2)  ESP32, ESP32S3
+ *          3)  All addlog statements have been commented out of interrupt functions
+ *                as they can cause reboots. (they were use for debug only)
  *
  *
  *    TODO:
@@ -93,15 +96,15 @@
 /*
 Changes made to Tasmota base code... See integration notes...
 
-tasmota/tasmota_template.h 
+tasmota/tasmota_template.h  11.1.0.3
 
-line 188
+line 190
 GPIO_SB_3WA, GPIO_SB_3W1, GPIO_SB_LED,
 
-line 413
+line 424
 D_SENSOR_SB_3WA "|" D_SENSOR_SB_3W1 "|" D_SENSOR_SB_LED "|"     // <---------------  TRL 
 
-line 469
+line 499
 #ifdef USE_SB3Wx
   AGPIO(GPIO_SB_3WA),                  // xsns_123              // <---------------  TRL
   AGPIO(GPIO_SB_3W1),
@@ -109,7 +112,7 @@ line 469
 #endif
 
 tasmota/language/en_GB.h
-at line 865
+at line 875
 #define D_SENSOR_SB_3WA        "Seeburg 3WA"                    // <---------------  TRL
 #define D_SENSOR_SB_3W1        "Seeburg 3W1"
 #define D_SENSOR_SB_LED        "Seeburg Led"
@@ -136,15 +139,15 @@ void wb_pulse_timer_func(void* arg);  // void* arg
 // Our Local global variables...
 typedef struct wb_selection_pulse 
 {
-    uint32 elapsed;                             // time since the end of the last pulse
-    uint32 duration;                            // duration of the current pulse
+    uint32_t elapsed;                           // time since the end of the last pulse
+    uint32_t duration;                          // duration of the current pulse
 } wb_selection_pulse;
 
 typedef enum wallbox_type 
 {
     UNKNOWN_WALLBOX = 0,
     SEEBURG_3W1_100,
-    SEEBURG_V3WA_200,
+    SEEBURG_3WA_200,
     MAX_WALLBOX_TYPES
 } wallbox_type;
 
@@ -152,30 +155,34 @@ typedef enum wallbox_type
 #define DEBOUNCE_GAP 10000                      // Minimum allowable pulse gap, in microseconds
 #define D_Wallbox "Wallbox"
 
-const char  WB_LETTERS[] = "ABCDEFGHJKLMNPQRSTUV";         // missing 'I' and 'O'
+const char  WB_LETTERS[] = "ABCDEFGHJKLMNPQRSTUV";    // missing 'I' and 'O' as they are not used
 
-volatile    bool          SBLedState = false;
-volatile    bool          MQTT_Send_Flag = false;
-volatile    uint32_t      wb_pulse_last_value;
-volatile    uint32_t      wb_pulse_last_time;
-volatile    uint32_t      wb_pulse_index;
+volatile    bool SBLedState =     false;
+volatile    bool MQTT_Send_Flag = false;
+
+volatile    wallbox_type wb_active_type;
+volatile    uint32_t    wb_pulse_last_value;
+volatile    uint32_t    wb_pulse_last_time;
+volatile    uint32_t    wb_pulse_index;
+volatile    uint32_t    wb_pulse_timer;
+volatile    uint32_t    currentPulseValue;
 
 wb_selection_pulse wb_pulse_list[MAX_WB_SELECTION_PULSES];
 
-wallbox_type  wb_selected_type;
-wallbox_type  wb_active_type;
-uint32_t      wb_pulse_timer;
-uint32_t      timeout = 3000;
-char          letter;
-uint32_t      letter_count;
-uint32_t      number;
+uint32_t    timeout = 3000;
+char        letter;
+uint32_t    letter_count;
+uint32_t    number;
+
 
 #include "esp_timer.h"
 esp_timer_handle_t _timer;
 
+portMUX_TYPE SBmux = portMUX_INITIALIZER_UNLOCKED;
+
 
 /* ******************************************************** */
-void Ticker_detach() 
+void IRAM_ATTR Ticker_detach() 
 {
   if (_timer) 
   {
@@ -187,7 +194,7 @@ void Ticker_detach()
 
 
 /* ******************************************************** */
-void Ticker_attach_ms(uint32_t milliseconds, bool repeat, esp_timer_cb_t callback, uint32_t arg) 
+void IRAM_ATTR Ticker_attach_ms(uint32_t milliseconds, bool repeat, esp_timer_cb_t callback, uint32_t arg) 
 {
   esp_timer_create_args_t _timerConfig;
   _timerConfig.arg = reinterpret_cast<void*>(arg);
@@ -211,7 +218,7 @@ void Ticker_attach_ms(uint32_t milliseconds, bool repeat, esp_timer_cb_t callbac
 
 
 /* ******************************************************** */
-void wb_pulse_list_clear()
+void IRAM_ATTR wb_pulse_list_clear()
 {
     wb_pulse_index = 0;
     memset (wb_pulse_list, 0x00, sizeof(wb_pulse_list));
@@ -219,36 +226,37 @@ void wb_pulse_list_clear()
 
 
 /* ******************************************************** */
-// this is called from timer timeout...
-void wb_pulse_timer_func(void* arg)
+// this is called from timer timeout in ISR...
+void IRAM_ATTR wb_pulse_timer_func(void* arg)
 {
     bool result;
 
-    noInterrupts();                                 // Disable interrupts while we process the results
+    //noInterrupts();                                 // Disable interrupts while we process the results
+    portENTER_CRITICAL_ISR(&SBmux);
 
     // lets stop the timer...
-    Ticker_detach();                                // <------------------- TRL
+    Ticker_detach();
 
     if (wb_active_type == SEEBURG_3W1_100) 
     { result = wb_pulse_list_tally_3w1_100(&letter, &number);}
 
-    else if(wb_active_type == SEEBURG_V3WA_200) 
+    else if(wb_active_type == SEEBURG_3WA_200) 
     { result = wb_pulse_list_tally_3wa_200(&letter, &number);} 
 
     else 
     {
       result = false;                         // wallbox selection error if here
-      AddLog( LOG_LEVEL_INFO, PSTR("%s"), "---> Error --> No Wallbox Selected!\n");
+      ////AddLog( LOG_LEVEL_INFO, PSTR("%s"), "---> Error --> No Wallbox Selected!\n");
     }
 
 #if 0
     uint32_t i;
-    AddLog( LOG_LEVEL_INFO, PSTR("%s"), "----BEGIN PULSES---\n");
+    ////AddLog( LOG_LEVEL_INFO, PSTR("%s"), "----BEGIN PULSES---\n");
     for (i = 0; i < wb_pulse_index; i++) 
     {
-       AddLog( LOG_LEVEL_INFO, PSTR("%d, %d\n", wb_pulse_list[i].elapsed / 1000, wb_pulse_list[i].duration / 1000));  
+       ////AddLog( LOG_LEVEL_INFO, PSTR("%d, %d\n", wb_pulse_list[i].elapsed / 1000, wb_pulse_list[i].duration / 1000));  
     }
-    AddLog( LOG_LEVEL_INFO, PSTR("%s"), "----END PULSES---\n");
+    ////AddLog( LOG_LEVEL_INFO, PSTR("%s"), "----END PULSES---\n");
 #endif
 
     wb_pulse_list_clear();
@@ -256,35 +264,39 @@ void wb_pulse_timer_func(void* arg)
 
     if (result) 
     {
-      AddLog( LOG_LEVEL_INFO, PSTR("---> Selection: %c%d"), letter, number);
+      ////AddLog( LOG_LEVEL_INFO, PSTR("---> Selection: %c%d"), letter, number);
 
       // Initialize state variables
       wb_pulse_last_value = 0;
       wb_pulse_last_time  = micros();
-      memset (&wb_pulse_timer, 0x00, sizeof(wb_pulse_timer));
+      memset ( (void*) &wb_pulse_timer, 0x00, sizeof(wb_pulse_timer));
 
       MQTT_Send_Flag = true;        // we have an event to send, set flag
         
-    } else { AddLog( LOG_LEVEL_INFO, PSTR("%s"), "--> Timeout decode error\r\n");}   // error if here
+    } else 
+    { 
+      ////AddLog( LOG_LEVEL_INFO, PSTR("%s"), "--> Timeout decode error\r\n");
+    }   // error if here
   
-  interrupts();                    // Re-enable interrupts
+  //interrupts();                    // Re-enable interrupts
+   portEXIT_CRITICAL_ISR(&SBmux);
 }
 
 
 /* ******************************************************** */
 /*
  * Count the signal pulses.
- * Wallbox: Seeburg Wall-O-Matic 3WA 200
+ * Wallbox: Seeburg Wall-O-Matic 3W-200
  */
 // This is called from an ISR
-bool wb_pulse_list_tally_3wa_200(char *letter, uint32_t *number)
+bool IRAM_ATTR wb_pulse_list_tally_3wa_200(char *letter, uint32_t *number)
 {
     uint32_t i;
-    uint32_t p1 = 0;
-    uint32_t p2 = 0;
-    bool delimiter = false;
-    char letter_val;
-    uint32_t number_val;
+     uint32_t p1 = 0;
+     uint32_t p2 = 0;
+     bool delimiter = false;
+     char letter_val;
+     uint32_t number_val;
 
     for (i = 0; i < wb_pulse_index; i++) 
     {
@@ -292,7 +304,7 @@ bool wb_pulse_list_tally_3wa_200(char *letter, uint32_t *number)
         if (p1 > 0 && !delimiter && wb_pulse_list[i].elapsed > 125000) 
         {
             delimiter = true;
-            AddLog( LOG_LEVEL_DEBUG, PSTR("%s"), "---- Number Gap ----\r\n");
+            ////AddLog( LOG_LEVEL_DEBUG, PSTR("%s"), "---- Number Gap ----\r\n");
         }
         if (!delimiter) {p1++;}
         else            {p2++;}
@@ -321,10 +333,10 @@ bool wb_pulse_list_tally_3wa_200(char *letter, uint32_t *number)
 /* ******************************************************** */
 /*
  * Count the signal pulses.
- * Wallbox: Seeburg Wall-O-Matic 3W1 100
+ * Wallbox: Seeburg Wall-O-Matic 3W1-100
  */
 // This is called from an ISR
-bool wb_pulse_list_tally_3w1_100(char *letter, uint32_t *number)
+bool IRAM_ATTR wb_pulse_list_tally_3w1_100(char *letter, uint32_t *number)
 {
     uint32_t i;
     uint32_t p1 = 0;
@@ -333,20 +345,22 @@ bool wb_pulse_list_tally_3w1_100(char *letter, uint32_t *number)
     char letter_val;
     uint32_t number_val;
 
+//AddLog( LOG_LEVEL_DEBUG, PSTR("Pulse_Index: %u\n"), wb_pulse_index);
+
     for (i = 0; i < wb_pulse_index; i++)
     {
         // Number Pulse delimiter is ~800ms, so use 500 to be safe
         if (p1 > 0 && !delimiter && wb_pulse_list[i].duration > 500000) 
         {
             delimiter = true;
-            AddLog( LOG_LEVEL_DEBUG, PSTR("%s"), "---- Pulse Gap ----\n");
+            ////AddLog( LOG_LEVEL_DEBUG, PSTR("%s"), "---- Pulse Gap ----\n");
         }
         else {
             // Letter Gap delimiter is ~170ms, so use 100 to be safe
             if (p1 > 0 && !delimiter && wb_pulse_list[i].elapsed > 100000) 
             {
                 delimiter = true;
-                AddLog( LOG_LEVEL_DEBUG, PSTR("%s"), "---- Letter Gap ----\n");  
+                ////AddLog( LOG_LEVEL_DEBUG, PSTR("%s"), "---- Letter Gap ----\n");  
             }
             if (!delimiter) {p1++;}
             else            {p2++;}
@@ -392,12 +406,10 @@ bool wb_pulse_list_tally_3w1_100(char *letter, uint32_t *number)
 
 
 /* ******************************************************** */
-/* ******************************************************** */
 /* ********************** ISR ***************************** */
+/* ******************************************************** */
 void IRAM_ATTR SB_Isr(void)
-{
-  uint32_t currentPulseValue;
-
+{    
   // Optional external LED to show each pulse edge
   if (PinUsed(GPIO_SB_LED)) 
   {    
@@ -412,23 +424,16 @@ void IRAM_ATTR SB_Isr(void)
 
   uint32_t currentPulseTime = micros();           // system_get_time();
 
-  if (wb_active_type != wb_selected_type) 
-  {
-    wb_active_type = wb_selected_type;
-    if (wb_pulse_index > 0) {wb_pulse_list_clear();}            
-  }
-
   // Do something
   if(currentPulseValue != wb_pulse_last_value) 
   {      
     // lets stop the timer...
-    Ticker_detach();                              // <-------------------- TRL
+    Ticker_detach(); 
 
     uint32_t elapsed = currentPulseTime - wb_pulse_last_time;
     if (currentPulseValue == 1) 
     {
-      AddLog( LOG_LEVEL_DEBUG, PSTR("Gap:   %dms"), elapsed / 1000);
-
+      ////AddLog( LOG_LEVEL_DEBUG, PSTR("Gap:   %dms"), elapsed / 1000);
       if (wb_pulse_list[wb_pulse_index].duration == 0) 
       {
         wb_pulse_list[wb_pulse_index].elapsed = elapsed;
@@ -437,13 +442,13 @@ void IRAM_ATTR SB_Isr(void)
       else 
       {
        // Error
-      AddLog( LOG_LEVEL_INFO, PSTR("%s"), "*** In ISR, Pulse P1 error\n"); 
+      ////AddLog( LOG_LEVEL_INFO, PSTR("%s"), "*** In ISR, Pulse P1 error\n"); 
       }
     }
 
     else if (currentPulseValue == 0) 
     {
-      AddLog( LOG_LEVEL_DEBUG, PSTR("Pulse: %dms"), elapsed / 1000); 
+      ////AddLog( LOG_LEVEL_DEBUG, PSTR("Pulse: %dms"), elapsed / 1000); 
       if (wb_pulse_list[wb_pulse_index].elapsed > 0) 
       {
         if (wb_pulse_index > 0 && wb_pulse_list[wb_pulse_index].elapsed < DEBOUNCE_GAP) 
@@ -455,7 +460,7 @@ void IRAM_ATTR SB_Isr(void)
 
           wb_pulse_list[wb_pulse_index].elapsed = 0;
           wb_pulse_list[wb_pulse_index].duration = 0;
-          AddLog( LOG_LEVEL_INFO, PSTR("%s"), "*** In ISR, Debounce\n");
+          ////AddLog( LOG_LEVEL_INFO, PSTR("%s"), "*** In ISR, Debounce\n");
         } 
         
         else 
@@ -468,12 +473,12 @@ void IRAM_ATTR SB_Isr(void)
       else 
       {
        // Error
-       AddLog( LOG_LEVEL_INFO, PSTR("%s"), "*** In ISR, Pulse P2 error\n"); 
+       ////AddLog( LOG_LEVEL_INFO, PSTR("%s"), "*** In ISR, Pulse P2 error\n"); 
       }
     }
     if (wb_pulse_index >= MAX_WB_SELECTION_PULSES) 
     {
-      AddLog( LOG_LEVEL_INFO, PSTR("%s"), "*** In ISR, Max Pulse error\n");
+      ////AddLog( LOG_LEVEL_INFO, PSTR("%s"), "*** In ISR, Max Pulse error\n");
       wb_pulse_list_clear();
     } 
     
@@ -482,29 +487,28 @@ void IRAM_ATTR SB_Isr(void)
       // Count existing pulses
     if (wb_active_type == SEEBURG_3W1_100) 
       {
-        if (wb_pulse_list_tally_3w1_100(0, 0)) 
+        if (wb_pulse_list_tally_3w1_100 (0, 0)) 
             {timeout = 250;}
       } 
       
-      else if(wb_active_type == SEEBURG_V3WA_200) 
+    else if(wb_active_type == SEEBURG_3WA_200) 
       {
-        if (wb_pulse_list_tally_3wa_200(0, 0)) 
+        if (wb_pulse_list_tally_3wa_200 (0, 0)) 
             {timeout = 250;}
       } 
       
-      else 
+    else 
       {
         // Unknown wallbox type
-        AddLog( LOG_LEVEL_INFO, PSTR("%s"), "*** In ISR, Wallbox Undefined\n");
+        ////AddLog( LOG_LEVEL_INFO, PSTR("%s"), "*** In ISR, Wallbox Undefined\n");
         wb_pulse_list_clear();
       }
     }
     wb_pulse_last_value = currentPulseValue;
     wb_pulse_last_time  = currentPulseTime; 
-    
-
+  
     // this will start or restart our timer
-    Ticker_attach_ms(timeout, false, wb_pulse_timer_func, 0);   // <------------------ TRL
+    Ticker_attach_ms(timeout, false, wb_pulse_timer_func, 0); 
   }
 }
 
@@ -525,7 +529,7 @@ void SB_Init(void)
     // Initialize state variables
     wb_pulse_last_value = 0;
     wb_pulse_last_time  = micros();
-    memset (&wb_pulse_timer, 0x00, sizeof(wb_pulse_timer));
+    memset ( (void*) &wb_pulse_timer, 0x00, sizeof(wb_pulse_timer));
     wb_pulse_list_clear();
 
     if (PinUsed(GPIO_SB_3WA) && PinUsed(GPIO_SB_3W1))
@@ -537,18 +541,16 @@ void SB_Init(void)
     {
     if (PinUsed(GPIO_SB_3WA))
       {
-        wb_active_type      = SEEBURG_V3WA_200;
-        wb_selected_type    = SEEBURG_V3WA_200;
-        AddLog( LOG_LEVEL_DEBUG, PSTR("%s"), "*** 3WA Interrupt added!");
+        wb_active_type      = SEEBURG_3WA_200;
+        ( LOG_LEVEL_DEBUG, PSTR("%s"), "*** 3WA Interrupt added!");
         attachInterrupt(Pin(GPIO_SB_3WA), SB_Isr, CHANGE);
       }
 
     else if (PinUsed(GPIO_SB_3W1))
       {
         wb_active_type      = SEEBURG_3W1_100;
-        wb_selected_type    = SEEBURG_3W1_100;
         AddLog( LOG_LEVEL_DEBUG, PSTR("%s"), "*** 3W1 Interrupt added!");
-        attachInterrupt(Pin(GPIO_SB_3W1), SB_Isr, CHANGE);
+        attachInterrupt(Pin(GPIO_SB_3W1), SB_Isr, CHANGE);  
       }
     }
   }
@@ -589,7 +591,7 @@ void SB_Show(bool json)
        {
         ResponseAppend_P(PSTR(",\"Wallbox\":{"));
         if (wb_active_type == SEEBURG_3W1_100)  ResponseAppend_P(PSTR("\"Model\":\"%s\","), "3W1" );
-        if (wb_active_type == SEEBURG_V3WA_200) ResponseAppend_P(PSTR("\"Model\":\"%s\","), "3WA" );
+        if (wb_active_type == SEEBURG_3WA_200) ResponseAppend_P(PSTR("\"Model\":\"%s\","), "3WA" );
         ResponseAppend_P(PSTR("\"Last_Selection\":\"%c%u\""), letter, number);
         ResponseJsonEnd();
 
@@ -683,4 +685,3 @@ bool Xsns123(uint8_t function)
 #endif    // end of USE_SB3Wx
 
 /* ************************* The Very End ************************ */
-
