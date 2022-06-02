@@ -1,5 +1,5 @@
 
-//  Seeburg 3W1- 3WA JuteBox Simulator
+//  Seeburg 3W1 - 3WA JuteBox Simulator
 
 /* **************************************************************************************
  * CHANGE LOG:
@@ -56,7 +56,7 @@
  *  Then a series of pulses for the number code, 1 to 10.
  */
 
-//#define Seeburg3WA                 // if defined, Seeburg 3WA, if not 3W1
+#define Seeburg3WA                 // if defined, Seeburg 3WA, if not 3W1
 #define UseRandom 
 #include <Arduino.h>
 
@@ -65,9 +65,9 @@
 
 #define CycleTime       10000       // how often to send a pulse stream
 
-// Set song code to send here....
-#define LetterCode      'c'
-#define NumberCode       8
+// Set selection code to send here....
+#define LetterCode      'a'
+#define NumberCode       9
 
 #ifdef Seeburg3WA                   // Seeburg 3WA 200
 uint32_t MS = 35;
@@ -84,6 +84,7 @@ uint32_t Number_Count;              // 1 = A  .... to 10 = K, (No "I")
 uint32_t Letter_Count;
 uint32_t TotalTime;
 uint32_t RandNumber;
+
 
 #ifdef Seeburg3WA
 /* *************************************** */
@@ -122,7 +123,7 @@ void Pulse_3AW (uint32_t number_count, uint32_t letter_count, uint32_t MS, uint3
       delay (GAP);
     }
 }
-#else
+#else   // Seeburg 3W1
 
 /* *************************************** */
 /* **************** 3W1-100 ************** */ 
@@ -195,6 +196,7 @@ void Pulse_3A1 (uint32_t number_count, uint32_t letter_count, uint32_t MS, uint3
 }
 #endif
 
+
 /* *************************************** */
 /* *************** Setup ***************** */
 /* *************************************** */
@@ -237,42 +239,46 @@ void setup()
 void loop() 
 {
   TotalTime = millis();
+  
 #ifdef Seeburg3WA
 
-#ifdef UseRandom
-      RandNumber = random(0, 199);
-      
-      Letter_Count = (RandNumber / 10) + 1;
-      if ( Letter_Count < 1) Letter_Count = 1;    // these are not needd, but we will keep them...
-      if ( Letter_Count > 20) Letter_Count = 20;
-      
-      Number_Count = (RandNumber % 10) + 1; 
-       
-      printf("R: %u, letter: %u, number: %u\r", RandNumber, Letter_Count, Number_Count);
-#endif
+  #ifdef UseRandom
+    RandNumber = random(0, 199);
+        
+    Letter_Count = (RandNumber / 10) + 1;
+    if ( Letter_Count < 1) Letter_Count = 1;    // these are not needed, but we will keep them...
+    if ( Letter_Count > 20) Letter_Count = 20;
+        
+    Number_Count = (RandNumber % 10) + 1; 
+         
+    //printf("RandNum: %u, Letter: %u, Number: %u\r", RandNumber, Letter_Count, Number_Count);
+     
+  #endif
 
   uint32_t Letter = Letter_Count;
   if (Letter > 8)         Letter = Letter +1;
   if (Letter_Count > 13)  Letter = Letter +1;
-  printf("\r\n*** 3WA Sending %c%u\n", (Letter | 0x40), Number_Count);
+  printf("\n*** 3WA Sending --> %c%u\n", (Letter | 0x40), Number_Count);
   Pulse_3AW (Number_Count, Letter_Count, MS, GAP);     // Send pulse's
 
 #else
-#ifdef UseRandom
-      RandNumber = random(0, 99);
-      
-      Letter_Count = (RandNumber / 10) + 1;
-      if ( Letter_Count < 1) Letter_Count = 1;    // these are not needd, but we will keep them...
-      if ( Letter_Count > 10) Letter_Count = 10;
-      
-      Number_Count = (RandNumber % 10) + 1; 
-       
-      printf("R: %u, letter: %u, number: %u\n", RandNumber, Letter_Count, Number_Count);
-#endif
+
+
+  #ifdef UseRandom
+    RandNumber = random(0, 99);
+    
+    Letter_Count = (RandNumber / 10) + 1;
+    if ( Letter_Count < 1) Letter_Count = 1;    // these are not needed, but we will keep them...
+    if ( Letter_Count > 10) Letter_Count = 10;
+    
+    Number_Count = (RandNumber % 10) + 1; 
+     
+    //printf("RandNum: %u, letter: %u, number: %u\n", RandNumber, Letter_Count, Number_Count);
+  #endif
   
   uint32_t Letter = Letter_Count;
   if (Letter > 8)   Letter = Letter +1;
-  printf("\r\n*** 3W1 Sending: %c%u\n", (Letter | 0x40), Number_Count);
+  printf("\n*** 3W1 Sending -->  %c%u\n", (Letter | 0x40), Number_Count);
   Pulse_3A1 (Number_Count, Letter_Count, MS, GAP);     // send pulse's...
  
 #endif
@@ -281,3 +287,4 @@ void loop()
   delay(CycleTime);
 }
 
+/* ************************* The Very End ************************ */
