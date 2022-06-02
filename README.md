@@ -16,7 +16,7 @@ This was developed as a sensor under Tasmota, as pulses for the wallboxes are in
 
 I now use A1-->A10 to control things around the house, and B1-->V10 for music selection.
 
-It was developed under Tasmota 11.0.0.3 under Visual Studio Code with PaltformIO.
+It was developed under Tasmota 11.1.0.3 under Visual Studio Code with PaltformIO.
 
 To keep my sanity, I first developed a 3WA-3W1 emulator written in C under Arduino, 
 I program this into another ESP32 to send the selection pulses to my Tasmota decoder,
