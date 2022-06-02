@@ -22,6 +22,8 @@ To keep my sanity, I first developed a 3WA-3W1 emulator written in C under Ardui
 I program this into another ESP32 to send the selection pulses to my Tasmota decoder,
 as the 3WA-200 is very noisy... and my finger was tired of pressing the button...
 
+There is now a Standalone version for Arduino without Tasmota.
+
 This program expects a pulse on a pin from a Seeburg 3WA or 3W1 Wallbox...
 it decodes the pulses and sends the decoded information as an MQTT JSON object,
 that I use in Note-Red to make decisions.
