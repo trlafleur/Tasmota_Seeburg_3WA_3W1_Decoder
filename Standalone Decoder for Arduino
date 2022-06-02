@@ -1,0 +1,508 @@
+
+/* **************************************************************************************
+ * CHANGE LOG:
+ *
+ *  DATE         REV  DESCRIPTION
+ *  -----------  ---  ----------------------------------------------------------
+ *  12-May-2022  1.0   TRL - first build
+ *  18-May-2022  1.0a  Update comments and re-sync LED if needed
+ *  24-May-2022  1.0b  Fixed timeout timer
+ *  
+ *  27-May-2022  2.0   Standalone version for Arduino
+ *  29-May-2022  2.0a  Fix interrupt issue
+ *
+ *  Notes:  1)  Tested with IDE 1.8.19
+ *          2)  ESP32, ESP32S3
+ *
+ *
+ *    TODO:
+ *          1)  Add coin relay outputs, with MQTT commands.
+ *          2)  
+ *          3)
+ *
+ *    tom@lafleur.us
+ *
+ */
+/* ************************************************************************************** */
+
+/* **************************************************************************************
+ *  Notes: 
+ *
+ * This program expects a pulse on an input pin from a Seeburg 3WA or 3W1 Wallbox...
+ * it decodes the pulses and prints the decoded information for processing.
+ * 
+ * It support the 3WA-200 or the 3W1-100 wallboxies.
+ *
+ * The wallboxes send out a 24V AC pulse, that must be rectified and converted to 3.3v
+ *
+ * This code was adapted from Derek Konigs excellent post at:
+ *    http://hecgeek.blogspot.com/2017/10/wall-o-matic-interface-1.html
+ *
+ *  Serial.printf (or //printf) can't be used inside an ISR in Arduino for ESP32
+ *
+******************************************************************************************* */
+
+
+/***********************************************************\
+ * Seeburg 3WA and 3w1 wallbox decoder
+\***************** ******************************************/
+
+/* ******************************************************** */
+// Forward references
+void wb_pulse_list_clear();
+bool wb_pulse_list_tally_3w1_100(char *letter, uint32_t *number);
+bool wb_pulse_list_tally_3wa_200(char *letter, uint32_t *number);
+void IRAM_ATTR SB_Isr(void);
+void wb_pulse_timer_func(void* arg);
+void Ticker_detach();
+void Ticker_attach_ms(uint32_t milliseconds, bool repeat, esp_timer_cb_t callback, uint32_t arg);
+void loop();
+void setup();
+
+portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
+
+/* ******************************************************** */
+// Our Local global variables...
+typedef struct wb_selection_pulse 
+{
+    uint32_t elapsed;                             // time since the end of the last pulse
+    uint32_t duration;                            // duration of the current pulse
+} wb_selection_pulse;
+
+
+typedef enum wallbox_type 
+{
+    UNKNOWN_WALLBOX = 0,
+    SEEBURG_3W1_100,
+    SEEBURG_3WA_200,
+    MAX_WALLBOX_TYPES
+} wallbox_type;
+
+
+uint32_t Error_Flag;
+
+#define MAX_WB_SELECTION_PULSES 64              // Maximum accumulated length of a pulse stream 
+#define DEBOUNCE_GAP            10000           // Minimum allowable pulse gap, in microseconds
+#define GPIO_SB_LED             13              // LED
+#define GPIO_SB_3Wx             15              // IO pin from wallbox
+
+const char  WB_LETTERS[] = "ABCDEFGHJKLMNPQRSTUV";    // missing 'I' and 'O'
+
+volatile    bool          SBLedState = false;
+volatile    bool          MQTT_Send_Flag = false;
+volatile    uint32_t      wb_pulse_last_value;
+volatile    uint32_t      wb_pulse_last_time;
+volatile    uint32_t      wb_pulse_index;
+
+
+wb_selection_pulse wb_pulse_list[MAX_WB_SELECTION_PULSES];
+ 
+wallbox_type  wb_active_type = SEEBURG_3WA_200;       // set device type here --> SEEBURG_3W1_100 or SEEBURG_3WA_200
+
+uint32_t      wb_pulse_timer;
+uint32_t      timeout = 3000;
+char          letter;
+uint32_t      letter_count;
+uint32_t      number;
+
+#include "esp_timer.h"
+esp_timer_handle_t _timer;
+
+
+/* ******************************************************** */
+void IRAM_ATTR Ticker_detach() 
+{
+  if (_timer) 
+  {
+    esp_timer_stop(_timer);
+    esp_timer_delete(_timer);
+    _timer = nullptr;
+  }
+}
+
+
+/* ******************************************************** */
+void IRAM_ATTR Ticker_attach_ms(uint32_t milliseconds, bool repeat, esp_timer_cb_t callback, uint32_t arg) 
+{
+  esp_timer_create_args_t _timerConfig;
+  _timerConfig.arg = reinterpret_cast<void*>(arg);
+  _timerConfig.callback = callback;
+  _timerConfig.dispatch_method = ESP_TIMER_TASK;
+  _timerConfig.name = "SB_Ticker";
+
+  if (_timer) 
+  {
+    esp_timer_stop(_timer);
+    esp_timer_delete(_timer);
+  }
+
+  esp_timer_create(&_timerConfig, &_timer);
+
+  if (repeat) 
+    {esp_timer_start_periodic(_timer, milliseconds * 1000ULL);} 
+  else 
+    {esp_timer_start_once(_timer, milliseconds * 1000ULL);}
+}
+
+
+/* ******************************************************** */
+void IRAM_ATTR wb_pulse_list_clear()
+{
+    wb_pulse_index = 0;
+    memset (wb_pulse_list, 0x00, sizeof(wb_pulse_list));
+}
+
+
+/* ******************************************************** */
+// this is called from timer timeout...
+void IRAM_ATTR wb_pulse_timer_func(void* arg)
+{
+    bool result;
+
+    //noInterrupts();                                 // Disable interrupts while we process the results
+    //portENTER_CRITICAL_ISR(&mux);
+
+    // lets stop the timer...
+    Ticker_detach();                                // <------------------- TRL
+
+    if (wb_active_type == SEEBURG_3W1_100) 
+        { result = wb_pulse_list_tally_3w1_100(&letter, &number);}
+
+    else if(wb_active_type == SEEBURG_3WA_200) 
+        { result = wb_pulse_list_tally_3wa_200(&letter, &number); } 
+
+     else 
+     {
+       result = false;                         // wallbox selection error if here
+       //printf(PSTR("%s"), "---> Error --> No Wallbox Selected!\n");
+       Error_Flag = 99993;
+      }
+
+ #if 0
+     uint32_t i;
+     printf(PSTR("%s"), "----BEGIN PULSES---\n");
+     
+     uint32_t el;
+     uint32_t du;
+     
+     for (i = 0; i < wb_pulse_index; i++) 
+     {
+        el = (wb_pulse_list[i].elapsed  / 1000);
+        du = (wb_pulse_list[i].duration / 1000);
+        printf("%u, %u\n", el, du);  
+     }
+     printf(PSTR("%s"), "----END PULSES---\n");
+ #endif
+
+    wb_pulse_list_clear();
+    SBLedState  =  false;
+
+    if (result) 
+    {
+      //printf(PSTR("---> Selection: %c%d\n"), letter, number);  // <-----------------  TRL
+
+      // Initialize state variables
+      wb_pulse_last_value = 0;
+      wb_pulse_last_time  = micros();
+      memset ( &wb_pulse_timer, 0x00, sizeof(wb_pulse_timer));
+
+      MQTT_Send_Flag = true;        // we have an event to send, set flag
+        
+    } else 
+    { 
+      printf(PSTR("%s"), "--> Timeout decode error\r\n");
+    }   // error if here
+  
+  //interrupts();                    // Re-enable interrupts
+  //portEXIT_CRITICAL_ISR(&mux);
+}
+
+
+/* ******************************************************** */
+/*
+ * Count the signal pulses.
+ * Wallbox: Seeburg Wall-O-Matic 3WA 200
+ */
+// This is called from an ISR
+bool IRAM_ATTR wb_pulse_list_tally_3wa_200(char *letter, uint32_t *number)
+{
+    uint32_t i;
+    uint32_t p1 = 0;
+    uint32_t p2 = 0;
+    bool delimiter = false;
+    char letter_val;
+    uint32_t number_val;
+
+    for (i = 0; i < wb_pulse_index; i++) 
+    {
+        // Gap delimiter is ~230ms, so use 125ms to be safe
+        if (p1 > 0 && !delimiter && wb_pulse_list[i].elapsed > 125000) 
+        {
+            delimiter = true;
+            //Error_Flag = 99996;
+            //printf(PSTR("%s"), "---- Number Gap ----\r\n");
+        }
+        if (!delimiter) {p1++;}
+        else            {p2++;}
+    }
+
+    if (p1 < 2 || p1 > 21 || p2 < 1 || p2 > 10) 
+    {
+        // Reject invalid or incomplete values
+        return false;
+    }
+
+    // convert pulses to numeric values
+    letter_val = WB_LETTERS[p1 - 2];
+    letter_count = p1-1;
+    number_val = p2;
+
+    if (letter && number)
+    {
+        *letter = letter_val;
+        *number = number_val;
+    }
+    return true;
+}
+
+
+/* ******************************************************** */
+/*
+ * Count the signal pulses.
+ * Wallbox: Seeburg Wall-O-Matic 3W1 100
+ */
+// This is called from an ISR
+bool IRAM_ATTR wb_pulse_list_tally_3w1_100(char *letter, uint32_t *number)
+{
+    uint32_t i;
+    uint32_t p1 = 0;
+    uint32_t p2 = 0;
+    bool delimiter = false;
+    char letter_val;
+    uint32_t number_val;
+
+    for (i = 0; i < wb_pulse_index; i++)
+    {
+        // Number Pulse delimiter is ~800ms, so use 500 to be safe
+        if (p1 > 0 && !delimiter && wb_pulse_list[i].duration > 500000) 
+        {
+            delimiter = true;
+            //printf(PSTR("%s"), "---- Pulse Gap ----\n");
+        }
+        else {
+            // Letter Gap delimiter is ~170ms, so use 100 to be safe
+            if (p1 > 0 && !delimiter && wb_pulse_list[i].elapsed > 100000) 
+            {
+                delimiter = true;
+                //printf(PSTR("%s"), "---- Letter Gap ----\n");  
+            }
+            if (!delimiter) {p1++;}
+            else            {p2++;}
+        }
+    }
+
+    if (p2 < 1 || p2 > 5) 
+    {
+        // Reject invalid or incomplete values
+        return false;
+    }
+
+    if (p1 >= 1 && p1 <= 10) 
+    {
+        number_val = p1;
+        letter_count = ((p2 - 1) * 2) + 1;
+        letter_val = 'A' + (p2 - 1) * 2;
+    }
+
+    else if (p1 >= 12 && p1 <= 21) 
+    {
+        number_val = p1 - 11;
+        letter_count = ((p2 - 1) * 2) + 2;
+        letter_val = 'A' + ((p2 - 1) * 2) + 1;
+    }
+
+    else 
+    {
+        // Reject invalid pulse P1 value
+        return false;
+    }
+
+    // This wallbox skips the letter 'I'
+    if (letter_val > 'H') { letter_val++; }
+
+    if (letter && number) 
+    {
+        *letter = letter_val;
+        *number = number_val;
+    }
+    return true;
+}
+
+
+/* ******************************************************** */
+/* ********************** ISR ***************************** */
+/* ******************************************************** */
+void IRAM_ATTR SB_Isr(void)
+{
+  portENTER_CRITICAL_ISR(&mux);
+  
+  uint32_t currentPulseValue;
+
+  // LED show each pulse edge  
+  SBLedState = (SBLedState == 0) ? 1 : 0;
+  digitalWrite(GPIO_SB_LED, SBLedState);
+
+  timeout = 3000;                                 // cycle time is ~2100ms, so we set timeout to 3000ms
+
+  currentPulseValue = digitalRead(GPIO_SB_3Wx);
+
+  uint32_t currentPulseTime = micros();           // system_get_time();
+
+  // Do something
+  if(currentPulseValue != wb_pulse_last_value) 
+  {      
+    // lets stop the timer...
+    Ticker_detach();                              // <-------------------- TRL
+
+    uint32_t elapsed = currentPulseTime - wb_pulse_last_time;
+    if (currentPulseValue == 1) 
+    {
+      //printf(PSTR("Gap:   %dms"), elapsed / 1000);
+ 
+      if (wb_pulse_list[wb_pulse_index].duration == 0) 
+      {
+        wb_pulse_list[wb_pulse_index].elapsed = elapsed;
+      } 
+      
+      else 
+      {
+      // Error
+      //printf(PSTR("%s"), "*** In ISR, Pulse P1 error\n"); 
+       Error_Flag = 99999;
+      }
+    }
+
+    else if (currentPulseValue == 0) 
+    {
+      //printf(PSTR("Pulse: %dms"), elapsed / 1000); 
+      if (wb_pulse_list[wb_pulse_index].elapsed > 0) 
+      {
+        if (wb_pulse_index > 0 && wb_pulse_list[wb_pulse_index].elapsed < DEBOUNCE_GAP) 
+        {
+          // If this pulse had a negligible gap from the previous
+          // pulse, then merge them.
+          wb_pulse_list[wb_pulse_index - 1].duration +=
+          wb_pulse_list[wb_pulse_index].elapsed  + elapsed;
+
+          wb_pulse_list[wb_pulse_index].elapsed = 0;
+          wb_pulse_list[wb_pulse_index].duration = 0;
+          //printf(PSTR("%s"), "*** In ISR, Debounce\n");
+          Error_Flag = 99995;
+        } 
+        
+        else 
+        {
+          wb_pulse_list[wb_pulse_index].duration = elapsed;
+          wb_pulse_index++;
+        }
+      } 
+        
+      else 
+      {
+       // Error
+       //printf(PSTR("%s"), "*** In ISR, Pulse P2 error\n");
+        Error_Flag = 99998; 
+      }
+    }
+    if (wb_pulse_index >= MAX_WB_SELECTION_PULSES) 
+    {
+      //printf(PSTR("%s"), "*** In ISR, Max Pulse error\n");
+      Error_Flag = 99997;
+      wb_pulse_list_clear();
+    } 
+    
+    else 
+    {
+      
+    //Count existing pulses
+    if (wb_active_type == SEEBURG_3W1_100) 
+      {
+        if (wb_pulse_list_tally_3w1_100 (0, 0)) 
+            {timeout = 250;}
+      } 
+      
+      else if(wb_active_type == SEEBURG_3WA_200) 
+      {
+        if (wb_pulse_list_tally_3wa_200 (0, 0)) 
+            {timeout = 250;}
+      } 
+      
+//      else 
+//      {
+//        // Unknown wallbox type
+//        //printf(PSTR("%s"), "*** In ISR, Wallbox Undefined\n");
+//        Error_Flag = 99995;
+//        wb_pulse_list_clear();
+//      }
+    }
+    wb_pulse_last_value = currentPulseValue;
+    wb_pulse_last_time  = currentPulseTime; 
+
+    // this will start or restart our timer
+    Ticker_attach_ms(timeout, false, wb_pulse_timer_func, 0);   // <------------------ TRL
+  }
+  portEXIT_CRITICAL_ISR(&mux);
+}
+
+
+
+/* ******************************************************** */
+/* ********************** Setup *************************** */
+/* ******************************************************** */
+void setup(void)
+{
+  Serial.begin(115200);
+  delay (2000);
+  if (wb_active_type == SEEBURG_3W1_100) printf("\nSeeburg 3W1 Decoder\n");
+  if (wb_active_type == SEEBURG_3WA_200) printf("\nSeeburg 3WA Decoder\n");
+  
+  SBLedState  =  false;
+  pinMode(GPIO_SB_LED, OUTPUT);   // set pin to output
+  digitalWrite(GPIO_SB_LED, 0);   // turn off led for now
+
+  pinMode(GPIO_SB_3Wx, INPUT_PULLUP);    // set pin to Input
+
+  // Initialize state variables
+  wb_pulse_last_value = 0;
+  wb_pulse_last_time  = micros();
+  memset (&wb_pulse_timer, 0x00, sizeof(wb_pulse_timer));
+  wb_pulse_list_clear();
+  
+  Error_Flag = 0xffffffff;
+  
+  attachInterrupt(digitalPinToInterrupt(GPIO_SB_3Wx), SB_Isr, CHANGE);
+  
+}   // end of: void setup()
+
+
+/* ******************************************************** */
+/* ********************** loop **************************** */
+/* ******************************************************** */
+void loop() 
+{
+  if (MQTT_Send_Flag == true )        // we have an event to process
+  {
+    MQTT_Send_Flag = false;
+    printf("Selection: %c%u, Index: %u\n", letter, number, ((letter_count - 1) * 10) + number );
+  }
+
+
+ if (Error_Flag < 0xffffffff )        // check for error flag...
+  {
+    printf("Error: %u\n", Error_Flag);
+    Error_Flag = 0xffffffff;
+  }
+
+}  
+
+/* ******************* The Very End ********************** */
