@@ -36,6 +36,9 @@ There is also a status LED that toggles on every pulse edge. 'Seeburg LED'
 The wallboxes send out a 24V AC pulse, that must be rectified and converted to 3.3v.
 See the URL above for detail on the converter from 24VAC...
  
+Added a small PCB with a Feather ESP32, decoder, power supply and a DFRobot DFR0299 MP3 player
+Schematic and PCB files are located in Github...
+
 
 ToDo:   Connect via Berry to Tasmota MP3 player
   
