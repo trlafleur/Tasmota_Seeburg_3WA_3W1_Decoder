@@ -26,7 +26,7 @@ There is now a Standalone version for Arduino without Tasmota.
 
 This program expects a pulse on a pin from a Seeburg 3WA or 3W1 Wallbox...
 it decodes the pulses and sends the decoded information as an MQTT JSON object,
-that I use in Note-Red to make decisions.
+that I use in Node-Red to make decisions.
   
 It supports the 3WA-200 (also 3WA-160) or the 3W1-100 wallboxies. One or the other is selected
 in the configure module or template. 'Seeburg 3WA' or 'Seeburg 3W1'. 
