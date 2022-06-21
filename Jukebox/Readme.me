@@ -1,3 +1,13 @@
 This is a Jukebox player in Berry, require a modifed MP3 drive and 3WA decoder..
 
+xdrv_14_mp3.ino
 
+Changes were made to allow GPIO connection from MP3 module to the ESP32 processor
+Also a new commnd MP3Folder was added to allow for folder/track commands.
+
+todo:  implement MP3Folder 3,78 format, ie: folder 3, track 78, its now implement as below:
+
+        # Folder format use folder to store track, starting at folder 01 -> 99,
+        # each folder can have 1->254 songs, folder 00 is not alowed, nor is track 0
+        # so, mininmal value is 256 + 1 = 257, max is  99 * 256 = 25,344 + 254 = 25,598
+        # used caution, experimental at this time!
