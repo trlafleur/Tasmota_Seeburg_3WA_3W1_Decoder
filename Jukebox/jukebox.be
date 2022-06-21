@@ -73,7 +73,7 @@ class SEEBURG_DRIVER : Driver
         var MaxQueueSize = 10
 
         if (index > 200) index = 200 end                    # do a bounds check
-        if (index <= 0)  index = 0   end
+        if (index <  0)  index = 0   end
 
         if (index == 200)                                   # if we have a selection of: V10 inx = 200, toggle random play                  
             if (self.RandomPlay == true )  self.RandomPlay = false end
@@ -85,6 +85,7 @@ class SEEBURG_DRIVER : Driver
         if (index == 199)                                   # if we have a track of: V9 index = 199. reset
             tasmota.cmd("MP3Reset")
             self.buf.clear()                                # flush the queue 
+            self.RandomPlay  = false
             tasmota.cmd("MP3Volume 80")                     # set volume
             return
         end
