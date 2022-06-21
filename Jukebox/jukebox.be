@@ -15,7 +15,7 @@
  
     DATE         REV  DESCRIPTION
     -----------  ---  ----------------------
-    28-Jan-2022  1.0  TRL - 1st release
+    21-Jun-2022  1.0  TRL - 1st release
        
     Notes:  1)  Tested with 11.1.0.3(tasmota)
         
@@ -63,6 +63,7 @@ class SEEBURG_DRIVER : Driver
         mqtt.subscribe('RSF/JUKEBOX/#')  
         
         tasmota.cmd("MP3Volume 80")                        # set volume
+        self.buf.clear()                                   # flush the queue
 
     end
 
@@ -79,6 +80,13 @@ class SEEBURG_DRIVER : Driver
             if (self.RandomPlay == false ) self.RandomPlay = true  end
             self.buf.clear()                                # flush the queue            
             return                                          # exit function
+        end
+
+        if (index == 199)                                   # if we have a track of: V9 index = 199. reset
+            tasmota.cmd("MP3Reset")
+            self.buf.clear()                                # flush the queue 
+            tasmota.cmd("MP3Volume 80")                     # set volume
+            return
         end
 
         self.RandomPlay = false                             # reset random play if we select anything else
@@ -140,9 +148,15 @@ class SEEBURG_DRIVER : Driver
             return true
         end
 
+        if ( string.find(topic, "Reset") > 0) 
+            tasmota.cmd("MP3Reset")
+            self.buf.clear()                                # flush the queue 
+            tasmota.cmd("MP3Volume 80")                     # set volume
+            return true 
+        end
+
         if ( string.find(topic, "Pause") > 0) tasmota.cmd("MP3Pause") return true end
         if ( string.find(topic, "Play")  > 0) tasmota.cmd("MP3Play")  return true end
-        if ( string.find(topic, "Reset") > 0) tasmota.cmd("MP3Reset") return true end
         if ( string.find(topic, "Stop")  > 0) tasmota.cmd("MP3Stop")  return true end
 
         return false
@@ -185,7 +199,7 @@ class SEEBURG_DRIVER : Driver
     def play(Index)
 
         if (self.BusyFlag == 1)                     # if not busy...
-            print ("This Track: ", Index)
+            print ("Playing Track: ", Index)
             var MyCmd = string.format("MP3Track %u", int (Index))
             #print ("MyCmd: ", MyCmd)
             tasmota.cmd(MyCmd)
@@ -196,9 +210,9 @@ class SEEBURG_DRIVER : Driver
 #- *************************************** -#
     def every_second()
 
-        if (self.RandomPlay == true )               # select a random track, range 1 -> 199      
+        if (self.RandomPlay == true )               # select a random track, range 1 -> 198      
             if (self.BusyFlag == 1)                 # if not busy...
-                var random = math.rand() % (199 + 1 - 1) + 1    # rand() % (Max + 1 - Min) + Min
+                var random = math.rand() % (198 + 1 - 1) + 1    # rand() % (Max + 1 - Min) + Min
                 print ("Random Track: ", random)
                 self.play(random)
                 return
@@ -210,7 +224,6 @@ class SEEBURG_DRIVER : Driver
             var NextTrack = self.buf.pop(0)         # get next track from stack
             self.play(NextTrack)
         end
-
     end
   
    
