@@ -41,7 +41,7 @@ Added a small PCB with a Feather ESP32, decoder, power supply and a DFRobot DFR0
 Schematic and PCB files are located in Github...
 
 
-ToDo:   Connect via Berry to Tasmota MP3 player
+ToDo:   Connect via Berry to Tasmota MP3 player  <---- Now done
   
 ~~~
 MQTT JSON frame:
