@@ -2,7 +2,7 @@
 
 
 #- 
-   To load this file, compile Tasmota32 with the option as needed....
+   To load this file, re-compile Tasmota32 with your option as needed....
    Then Load the new binary image in your ESP32 and re-boot it. 
    Open the web page for this device, select Console, then Manage File System
    Rename this Berry file to "autoexec.be", then upload it to the ESP32 file system. 
@@ -27,10 +27,10 @@
 
     This is a jukebox player that get tracks to play from the Seeburg 3WA wallbox via driver (xsns_123_SB-3Wx)
     or via MQTT. It requires a change to the MP3 driver (xdrv_14_mp3) to sense an external busy siginal from 
-    the MP3 module. this is then made avilable to Berry as a rule to delay next selection untll MP3 module is no busy
+    the MP3 module. this is then made avilable to Berry as a rule to delay next selection untll MP3 module is not busy
 
     If you select V10 (index = 200), it toggles random play, on, off, if you select anything else, it reset 
-    random play and start to play that selection.
+    random play and start to play that selection. V9 (index = 199), will reset system.
 
     Will respond to MQTT data for Track, Volume etc... -->  subscribe('RSF/JUKEBOX/#')
  
@@ -45,7 +45,7 @@ import json
 #- *************************************** -#
 class SEEBURG_DRIVER : Driver
     
-    #build an global array-->list to store wallbox selection
+    #build an global array-->list to store wallbox tracks
     static buf = []
     var BusyFlag           # 0 = busy
     var RandomPlay
