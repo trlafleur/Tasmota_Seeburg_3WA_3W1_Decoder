@@ -1,4 +1,5 @@
 
+
 //  Seeburg 3W1 - 3WA JuteBox Simulator
 
 /* **************************************************************************************
@@ -9,6 +10,7 @@
  *  18-May-2022  1.0   TRL - first build
  *  21-May-2022. 1.0a  TRL - added random selection
  *  23-May-2022  1.0b  TRL - fixed 3W1 format
+ *  21-Jun-2022  1.0c  TRL - changes random range for 3WA to 1-198
  *  
  *  Notes:  1)  Ardunio 1.8.19, 2.0.0rc6
  *          2)  ESP32
@@ -70,8 +72,8 @@
 #define NumberCode       9
 
 #ifdef Seeburg3WA                   // Seeburg 3WA 200
-uint32_t MS = 35;
-uint32_t GAP = 30;
+uint32_t MS = 10;
+uint32_t GAP = 70;
 uint32_t number_gap = 170;
 
 #else                               // Seeburg 3A1 100 
@@ -87,11 +89,19 @@ uint32_t RandNumber;
 
 
 #ifdef Seeburg3WA
+
 /* *************************************** */
 /* **************** 3WA-200 ************** */ 
 /* *************************************** */
 void Pulse_3AW (uint32_t number_count, uint32_t letter_count, uint32_t MS, uint32_t GAP)
 {   
+    // Send Start pulse's
+    printf("3WA Start Pulse\n"); 
+    digitalWrite(Output_PIN, 1);                         // Sent Start pulse
+    delay (MS);
+    digitalWrite(Output_PIN, 0);
+    delay (GAP);
+    
     // Lets send the letter pulse's 1-->20   
     for (uint32_t i = 1; i <= letter_count; ++i)
     {
@@ -102,14 +112,7 @@ void Pulse_3AW (uint32_t number_count, uint32_t letter_count, uint32_t MS, uint3
       delay (GAP);
     }
 
-    // Send Start pulse's
-    printf("3WA Start Pulse\n"); 
-    digitalWrite(Output_PIN, 1);                         // Sent Start pulse
-    delay (MS);
-    digitalWrite(Output_PIN, 0);
-    delay (GAP);
-
-    // send short gap...
+    // send short number gap...
     printf("3WA Number Gap\n");
     delay (number_gap);
 
@@ -243,7 +246,7 @@ void loop()
 #ifdef Seeburg3WA
 
   #ifdef UseRandom
-    RandNumber = random(0, 199);
+    RandNumber = random(0, 198);
         
     Letter_Count = (RandNumber / 10) + 1;
     if ( Letter_Count < 1) Letter_Count = 1;    // these are not needed, but we will keep them...
