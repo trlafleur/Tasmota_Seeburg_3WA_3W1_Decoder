@@ -1,5 +1,6 @@
 
 
+
 #- 
    To load this file, compile Tasmota32 with the option as needed....
    Then Load the new binary image in your ESP32 and re-boot it. 
@@ -75,7 +76,7 @@ class SEEBURG_DRIVER : Driver
         if (index > 200) index = 200 end                    # do a bounds check
         if (index <  0)  index = 0   end
 
-        if (index == 200)                                   # if we have a selection of: V10 inx = 200, toggle random play                  
+        if (index == 200)                                   # if we have a selection of: V10 index = 200, toggle random play                  
             if (self.RandomPlay == true )  self.RandomPlay = false end
             if (self.RandomPlay == false ) self.RandomPlay = true  end
             self.buf.clear()                                # flush the queue            
@@ -96,8 +97,6 @@ class SEEBURG_DRIVER : Driver
 
         self.buf.push(index)                                # add selection to list
         print ("Queue: ", self.buf)                         # print queue
-        #print(self.buf)
-
     end
 
 #- *************************************** -# 
@@ -110,7 +109,6 @@ class SEEBURG_DRIVER : Driver
             var MQTT_Index = json.load(strdata)
             if (MQTT_Index > 200) MQTT_Index = 200 end
             if (MQTT_Index <  0)  MQTT_Index = 0   end
-            #print ("MQTT Index: ", MQTT_Index)
             self.queue(MQTT_Index)                          # send to queue
             return true
         end
@@ -119,7 +117,6 @@ class SEEBURG_DRIVER : Driver
             var MyVolume = json.load(strdata)
             if (MyVolume > 100) MyVolume = 100 end
             if (MyVolume <  0)  MyVolume = 0   end
-            #print ("Volume: ", MyVolume)
             MyCmd = string.format("MP3Volume %u", int (MyVolume))
             tasmota.cmd(MyCmd)                              # set volume
             return true
@@ -129,13 +126,12 @@ class SEEBURG_DRIVER : Driver
             var MyEQ = json.load(strdata)
             if (MyEQ > 5)  MyEQ  = 5   end
             if (MyEQ < 0)  MyEQ  = 0   end
-            #print ("EQ: ", MyEQ)
             MyCmd = string.format("MP3EQ %u", int (MyEQ))
             tasmota.cmd(MyCmd)                              # set command
             return true
         end
 
-        # Folder format use folder to store track, starting at folder 01 -> 99,
+        # Folder format uses folder to store track, starting at folder 01 -> 99,
         # each folder can have 1->254 songs, folder 00 is not alowed, nor is track 0
         # so, mininmal value is 256 + 1 = 257, max is  99 * 256 = 25,344 + 254 = 25,598
         # used caution, experimental at this time!
@@ -143,7 +139,6 @@ class SEEBURG_DRIVER : Driver
             var MyFolder = json.load(strdata)
             if (MyFolder > 25598)  MyFolder  = 257 end      # we use 257 at folder 1, track 1
             if (MyFolder < 257)    MyFolder  = 257 end
-            #print ("Folder: ", MyFolder)
             MyCmd = string.format("MP3Folder %u", int (MyFolder))
             tasmota.cmd(MyCmd)                              # set command
             return true
@@ -167,21 +162,14 @@ class SEEBURG_DRIVER : Driver
 #- *************************************** -# 
     def process_MP3_busy(MyObj2) 
 
-        #print (" In Process MP3")
-        #print("Obj2: ", MyObj2)
         if  MyObj2 == nil print("Bad Obj2")     return end
         if !(MyObj2.contains('MP3Busy'))        return end
-
         self.BusyFlag = real(MyObj2['MP3Busy'] )
-        #print("BusyFlag: ",self.BusyFlag)
     end
 
 #- *************************************** -# 
     def process_wallbox(MyObj)
 
-        #print (" In Process Wallbox")
-        #print("Obj: ", MyObj)
-        
         if  MyObj == nil print("Bad Obj")       return end
        
         #if !(MyObj.contains('Number_Index'))    return end
@@ -202,7 +190,6 @@ class SEEBURG_DRIVER : Driver
         if (self.BusyFlag == 1)                     # if not busy...
             print ("Playing Track: ", Index)
             var MyCmd = string.format("MP3Track %u", int (Index))
-            #print ("MyCmd: ", MyCmd)
             tasmota.cmd(MyCmd)
             print ("Queue: ", self.buf)             # print queue
         end
@@ -248,4 +235,5 @@ SEEBURG_Driver =   SEEBURG_DRIVER()
 tasmota.add_driver(SEEBURG_Driver)
 
 #- ************ The Very End ************* -#
+
 
