@@ -1,12 +1,14 @@
-
-
+# Seeburg1.be 
 
 #- 
-   To load this file, re-compile Tasmota32 with your option as needed....
+   To load this file, compile Tasmota32 with the option as needed....
    Then Load the new binary image in your ESP32 and re-boot it. 
    Open the web page for this device, select Console, then Manage File System
    Rename this Berry file to "autoexec.be", then upload it to the ESP32 file system. 
    Reboot Tasmota, this Berry file will run after re-booting.
+   
+   Note: one must do a startup scrip that waits for MQTT to be started, prior to running this code...
+      see: Seeburg1-autoexec.be
    
  -#
    
@@ -17,6 +19,7 @@
     DATE         REV  DESCRIPTION
     -----------  ---  ----------------------
     21-Jun-2022  1.0  TRL - 1st release
+    23-Jun-2022  1.0a TRL - fixed issues with MQTT startup
        
     Notes:  1)  Tested with 11.1.0.3(tasmota)
         
@@ -27,34 +30,37 @@
 
     This is a jukebox player that get tracks to play from the Seeburg 3WA wallbox via driver (xsns_123_SB-3Wx)
     or via MQTT. It requires a change to the MP3 driver (xdrv_14_mp3) to sense an external busy siginal from 
-    the MP3 module. this is then made avilable to Berry as a rule to delay next selection untll MP3 module is not busy
-
+    the MP3 module. This is then made avilable to Berry as a rule to delay next track selection untll MP3 module is not busy
+    
     If you select V10 (index = 200), it toggles random play, on, off, if you select anything else, it reset 
-    random play and start to play that selection. V9 (index = 199), will reset system.
+    random play and start to play that selection. V9 (index = 199), will stop play and reset system.
 
     Will respond to MQTT data for Track, Volume etc... -->  subscribe('RSF/JUKEBOX/#')
- 
+    
+   
 -#
 
-import string
-import math
-import mqtt
-import json
+    import string
+    import math
+    import json
+    import mqtt
 
 #- *************************************** -#
 #- *************************************** -#
 class SEEBURG_DRIVER : Driver
     
-    #build an global array-->list to store wallbox tracks
+    #build an global array-->list to store wallbox selection
     static buf = []
     var BusyFlag           # 0 = busy
     var RandomPlay
 
 #- *************************************** -#   
     def init()
-        
-        tasmota.add_rule ("Wallbox",   /MyObj ->  self.process_wallbox(MyObj) )
-        tasmota.add_rule ("MP3Player", /MyObj2 -> self.process_MP3_busy(MyObj2) )
+    
+        tasmota.add_rule ("Wallbox",            /MyObj ->  self.process_wallbox(MyObj) )
+        tasmota.add_rule ("MP3Player",          /MyObj2 -> self.process_MP3_busy(MyObj2) )
+        tasmota.add_rule ("mqtt#connected",     /MyObj3 -> self.connected_MQTT(MyObj3)) 
+        tasmota.add_rule ("mqtt#disconnected",  /MyObj4 -> self.disconnected_MQTT(MyObj4))
 
         self.BusyFlag    = 0                               #  0 = busy
         self.RandomPlay  = false
@@ -64,19 +70,39 @@ class SEEBURG_DRIVER : Driver
         mqtt.subscribe('RSF/JUKEBOX/#')  
         
         tasmota.cmd("MP3Volume 80")                        # set volume
+        tasmota.cmd("MP3EQ 3")                             # set EQ
         self.buf.clear()                                   # flush the queue
 
     end
+    
+ 
+ #- *************************************** -#    
+    def disconnected_MQTT(MyObj4)
+    
+        print ("MQTT Disconnect: ",MyObj4)
+        mqtt.subscribe('RSF/JUKEBOX/#') 
+    
+    end
+    
+    
+#- *************************************** -#   
+    def connected_MQTT(MyObj3)
+    
+        print("Mqtt Connected: ",MyObj3)
+        #mqtt.subscribe('RSF/JUKEBOX/#') 
+    end
+    
+    
 
-    #- *************************************** -#
+#- *************************************** -#
     def queue(index)
 
-        var MaxQueueSize = 10
+        var MaxQueueSize = 12
 
         if (index > 200) index = 200 end                    # do a bounds check
         if (index <  0)  index = 0   end
 
-        if (index == 200)                                   # if we have a selection of: V10 index = 200, toggle random play                  
+        if (index == 200)                                   # if we have a selection of: V10 index = 200, toggle random play 
             if (self.RandomPlay == true )  self.RandomPlay = false end
             if (self.RandomPlay == false ) self.RandomPlay = true  end
             self.buf.clear()                                # flush the queue            
@@ -148,6 +174,7 @@ class SEEBURG_DRIVER : Driver
             tasmota.cmd("MP3Reset")
             self.buf.clear()                                # flush the queue 
             tasmota.cmd("MP3Volume 80")                     # set volume
+            tasmota.cmd("MP3EQ 3")                          # set EQ
             return true 
         end
 
@@ -164,7 +191,7 @@ class SEEBURG_DRIVER : Driver
 
         if  MyObj2 == nil print("Bad Obj2")     return end
         if !(MyObj2.contains('MP3Busy'))        return end
-        self.BusyFlag = real(MyObj2['MP3Busy'] )
+        self.BusyFlag = real(MyObj2['MP3Busy'] )                # get busy flag from MP3 driver
     end
 
 #- *************************************** -# 
@@ -174,32 +201,32 @@ class SEEBURG_DRIVER : Driver
        
         #if !(MyObj.contains('Number_Index'))    return end
         #if !(MyObj.contains('Letter_Index'))    return end
-        if !(MyObj.contains('Selection_Index')) return end
+        if !(MyObj.contains('Selection_Index')) return end      
             
         #var num = real(MyObj['Number_Index'] )
         #var let = real(MyObj['Letter_Index'] )
-        var index = real(MyObj['Selection_Index'] )
+        var index = real(MyObj['Selection_Index'] )             # get track selection from Wallbox
         
-        self.queue(index)                           # send to queue  
+        self.queue(index)                                       # send to queue  
     end
 
 
 #- *************************************** -#
     def play(Index)
 
-        if (self.BusyFlag == 1)                     # if not busy...
+        if (self.BusyFlag == 1)                                  # if not busy...
             print ("Playing Track: ", Index)
             var MyCmd = string.format("MP3Track %u", int (Index))
             tasmota.cmd(MyCmd)
-            print ("Queue: ", self.buf)             # print queue
+            print ("Queue: ", self.buf)                          # print queue
         end
     end
 
 #- *************************************** -#
     def every_second()
 
-        if (self.RandomPlay == true )               # select a random track, range 1 -> 198      
-            if (self.BusyFlag == 1)                 # if not busy...
+        if (self.RandomPlay == true )                           # select a random track, range 1 -> 198      
+            if (self.BusyFlag == 1)                             # if not busy...
                 var random = math.rand() % (198 + 1 - 1) + 1    # rand() % (Max + 1 - Min) + Min
                 print ("Random Track: ", random)
                 self.play(random)
@@ -207,9 +234,9 @@ class SEEBURG_DRIVER : Driver
             end
         end
     
-        if (self.buf.size() == 0) return  end       # nothing to do, selection queue is empty
-        if (self.BusyFlag == 1)                     # if not busy...
-            var NextTrack = self.buf.pop(0)         # get next track from stack
+        if (self.buf.size() == 0) return  end                   # nothing to do, selection queue is empty
+        if (self.BusyFlag == 1)                                 # if not busy...
+            var NextTrack = self.buf.pop(0)                     # get next track from stack
             self.play(NextTrack)
         end
     end
@@ -235,5 +262,4 @@ SEEBURG_Driver =   SEEBURG_DRIVER()
 tasmota.add_driver(SEEBURG_Driver)
 
 #- ************ The Very End ************* -#
-
 
