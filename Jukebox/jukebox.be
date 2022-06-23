@@ -1,11 +1,16 @@
 # Seeburg1.be 
 
 #- 
+   
    To load this file, compile Tasmota32 with the option as needed....
    Then Load the new binary image in your ESP32 and re-boot it. 
-   Open the web page for this device, select Console, then Manage File System
-   Rename this Berry file to "autoexec.be", then upload it to the ESP32 file system. 
-   Reboot Tasmota, this Berry file will run after re-booting.
+   
+   Open the web page for this device, select Console, then Manage File System,
+   then upload Seeburg1.be it to the ESP32 file system. Also upload the Seeburg1-autoexec.be,
+   and rename it to autoexec.be
+   
+   Reboot Tasmota, the autoexec.be will run after re-booting, wait for MQTT to be connected,
+   then it will load the Seeburg1.be file.
    
    Note: one must do a startup scrip that waits for MQTT to be started, prior to running this code...
       see: Seeburg1-autoexec.be
