@@ -1,4 +1,4 @@
-This is a Jukebox player in Berry, require a modifed MP3 drive and 3WA decoder to be added to Tasmota build.
+This is a Jukebox player in Berry, require a modifed MP3 driver and 3WA decoder to be added to Tasmota build.
 
    To load this file, compile Tasmota32 with the option as needed....
    Then Load the new binary image in your ESP32 and re-boot it. 
@@ -14,10 +14,10 @@ This is a Jukebox player in Berry, require a modifed MP3 drive and 3WA decoder t
       see: Seeburg1-autoexec.be
       
       xdrv_14_mp3.ino
-Changes were made to allow GPIO connection from MP3 module busy pin to the ESP32 processor
-Also a new commnd MP3Folder was added to allow for folder/track commands.
+         Changes were made to allow GPIO connection from MP3 module busy pin to the ESP32 processor
+         Also a new commnd MP3Folder was added to allow for folder/track commands.
 
-todo:  implement MP3Folder 3,78 format, ie: folder 3, track 78, its now implement as below:
+      todo:  implement MP3Folder 3,78 format, ie: folder 3, track 78, its now implement as below:
 
         # Folder format use folder to store track, starting at folder 01 -> 99,
         # each folder can have 1->254 songs, folder 00 is not alowed, nor is track 0
