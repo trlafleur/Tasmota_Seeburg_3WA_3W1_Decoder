@@ -1,19 +1,10 @@
 # Seeburg1.be 
-
 #- 
-   
    To load this file, compile Tasmota32 with the option as needed....
    Then Load the new binary image in your ESP32 and re-boot it. 
-   
-   Open the web page for this device, select Console, then Manage File System,
-   then upload Seeburg1.be it to the ESP32 file system. Also upload the Seeburg1-autoexec.be,
-   and rename it to autoexec.be
-   
-   Reboot Tasmota, the autoexec.be will run after re-booting, wait for MQTT to be connected,
-   then it will load the Seeburg1.be file.
-   
-   Note: one must do a startup scrip that waits for MQTT to be started, prior to running this code...
-      see: Seeburg1-autoexec.be
+   Open the web page for this device, select Console, then Manage File System
+   Rename this Berry file to "autoexec.be", then upload it to the ESP32 file system. 
+   Reboot Tasmota, this Berry file will run after re-booting.
    
  -#
    
@@ -33,16 +24,20 @@
     tom@lafleur.us
 
 
-    This is a jukebox player that get tracks to play from the Seeburg 3WA wallbox via driver (xsns_123_SB-3Wx)
-    or via MQTT. It requires a change to the MP3 driver (xdrv_14_mp3) to sense an external busy siginal from 
-    the MP3 module. This is then made avilable to Berry as a rule to delay next track selection untll MP3 module is not busy
     
-    If you select V10 (index = 200), it toggles random play, on, off, if you select anything else, it reset 
-    random play and start to play that selection. V9 (index = 199), will stop play and reset system.
-
-    Will respond to MQTT data for Track, Volume etc... -->  subscribe('RSF/JUKEBOX/#')
-    
+   To load this file, compile Tasmota32 with the option as needed...
+   Then Load the new binary image in your ESP32 and re-boot it. 
    
+   Open the web page for this device, select Console, then Manage File System,
+   then upload Seeburg1.be it to the ESP32 file system. Also upload the Seeburg1-autoexec.be,
+   and rename it to autoexec.be
+   
+   Reboot Tasmota, the autoexec.be will run after re-booting, wait for MQTT to be connected,
+   then it will load the Seeburg1.be file.
+   
+   Note: one must do a startup scrip that waits for MQTT to be started, prior to running this code...
+      see: Seeburg1-autoexec.be
+ 
 -#
 
     import string
@@ -84,7 +79,7 @@ class SEEBURG_DRIVER : Driver
  #- *************************************** -#    
     def disconnected_MQTT(MyObj4)
     
-        print ("MQTT Disconnect: ",MyObj4)
+        print ("MQTT Disconnect: ", MyObj4)
         mqtt.subscribe('RSF/JUKEBOX/#') 
     
     end
@@ -108,9 +103,9 @@ class SEEBURG_DRIVER : Driver
         if (index <  0)  index = 0   end
 
         if (index == 200)                                   # if we have a selection of: V10 index = 200, toggle random play 
-            if (self.RandomPlay == true )  self.RandomPlay = false end
-            if (self.RandomPlay == false ) self.RandomPlay = true  end
-            self.buf.clear()                                # flush the queue            
+            self.buf.clear()                                # flush the queue 
+            if (self.RandomPlay == true )  self.RandomPlay = false return end
+            if (self.RandomPlay == false ) self.RandomPlay = true  return end
             return                                          # exit function
         end
 
@@ -124,7 +119,6 @@ class SEEBURG_DRIVER : Driver
 
         self.RandomPlay = false                             # reset random play if we select anything else
         if (self.buf.size() >= MaxQueueSize) return  end    # do not add track selection to queue if full
-        #print("Selection Index: ", index)
 
         self.buf.push(index)                                # add selection to list
         print ("Queue: ", self.buf)                         # print queue
@@ -133,8 +127,8 @@ class SEEBURG_DRIVER : Driver
 #- *************************************** -# 
     def mqtt_data(topic, idx, strdata, bindata)
 
-    #print("Topic: ", topic) 
-    var MyCmd
+        #print("Topic: ", topic) 
+        var MyCmd
 
         if ( string.find(topic, "Track") > 0) 
             var MQTT_Index = json.load(strdata)
