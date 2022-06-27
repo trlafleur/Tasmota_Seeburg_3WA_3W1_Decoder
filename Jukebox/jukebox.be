@@ -1,3 +1,4 @@
+
 # Seeburg1.be 
 #- 
    To load this file, compile Tasmota32 with the option as needed....
@@ -15,9 +16,11 @@
     DATE         REV  DESCRIPTION
     -----------  ---  ----------------------
     21-Jun-2022  1.0  TRL - 1st release
-    23-Jun-2022  1.0a TRL - fixed issues with MQTT startup
+    23-Jun-2022  1.0a TRL - fixed issues with MQTT startup, V10 logic
+    25-Jun-2022  1.0b TRL - added DAC commands, change EQ default
+    
        
-    Notes:  1)  Tested with 11.1.0.3(tasmota)
+    Notes:  1)  Tested with 12.0.2(tasmota)
         
     ToDo:   1)
 
@@ -70,9 +73,8 @@ class SEEBURG_DRIVER : Driver
         mqtt.subscribe('RSF/JUKEBOX/#')  
         
         tasmota.cmd("MP3Volume 80")                        # set volume
-        tasmota.cmd("MP3EQ 3")                             # set EQ
+        tasmota.cmd("MP3EQ 4")                             # set EQ
         self.buf.clear()                                   # flush the queue
-
     end
     
  
@@ -81,15 +83,14 @@ class SEEBURG_DRIVER : Driver
     
         print ("MQTT Disconnect: ", MyObj4)
         mqtt.subscribe('RSF/JUKEBOX/#') 
-    
     end
     
     
 #- *************************************** -#   
     def connected_MQTT(MyObj3)
     
-        print("Mqtt Connected: ",MyObj3)
-        #mqtt.subscribe('RSF/JUKEBOX/#') 
+        print("Mqtt Connected: ", MyObj3)
+        mqtt.subscribe('RSF/JUKEBOX/#') 
     end
     
     
@@ -112,13 +113,13 @@ class SEEBURG_DRIVER : Driver
         if (index == 199)                                   # if we have a track of: V9 index = 199. reset
             tasmota.cmd("MP3Reset")
             self.buf.clear()                                # flush the queue 
-            self.RandomPlay  = false
+            self.RandomPlay = false
             tasmota.cmd("MP3Volume 80")                     # set volume
             return
         end
 
         self.RandomPlay = false                             # reset random play if we select anything else
-        if (self.buf.size() >= MaxQueueSize) return  end    # do not add track selection to queue if full
+        if (self.buf.size() > MaxQueueSize) return  end     # do not add track selection to queue if full
 
         self.buf.push(index)                                # add selection to list
         print ("Queue: ", self.buf)                         # print queue
@@ -156,6 +157,15 @@ class SEEBURG_DRIVER : Driver
             return true
         end
 
+        if ( string.find(topic, "DAC") > 0) 
+            var MyDAC = json.load(strdata)
+            if (MyDAC > 1)  MyDAC  = 1   end
+            if (MyDAC < 0)  MyDAC  = 0   end
+            MyCmd = string.format("MP3DAC %u", int (MyDAC))
+            tasmota.cmd(MyCmd)                              # set command
+            return true
+        end
+
         # Folder format uses folder to store track, starting at folder 01 -> 99,
         # each folder can have 1->254 songs, folder 00 is not alowed, nor is track 0
         # so, mininmal value is 256 + 1 = 257, max is  99 * 256 = 25,344 + 254 = 25,598
@@ -173,7 +183,7 @@ class SEEBURG_DRIVER : Driver
             tasmota.cmd("MP3Reset")
             self.buf.clear()                                # flush the queue 
             tasmota.cmd("MP3Volume 80")                     # set volume
-            tasmota.cmd("MP3EQ 3")                          # set EQ
+            tasmota.cmd("MP3EQ 4")                          # set EQ
             return true 
         end
 
@@ -227,7 +237,7 @@ class SEEBURG_DRIVER : Driver
         if (self.RandomPlay == true )                           # select a random track, range 1 -> 198      
             if (self.BusyFlag == 1)                             # if not busy...
                 var random = math.rand() % (198 + 1 - 1) + 1    # rand() % (Max + 1 - Min) + Min
-                print ("Random Track: ", random)
+                print ("Random Track:  ", random)
                 self.play(random)
                 return
             end
