@@ -231,8 +231,10 @@ class SEEBURG_DRIVER : Driver
 
             var a = int (Index/10)
             var n = Index % 10
-            var alpha = string.format("%s%d",self.alpha[a],n)
-            print ("Playing Track: ", alpha, Index)
+            if (n == 0) a = a - 1 end                           # adjust for Seeburg number of 1-->0 (10)
+
+            var alpha1 = string.format("%s%d",self.alpha[a],n)
+            print ("Playing Track: ", alpha1, Index)
 
             var MyCmd = string.format("MP3Track %u", int (Index))
             tasmota.cmd(MyCmd)
