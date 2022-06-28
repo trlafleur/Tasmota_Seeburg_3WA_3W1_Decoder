@@ -18,6 +18,7 @@
     21-Jun-2022  1.0  TRL - 1st release
     23-Jun-2022  1.0a TRL - fixed issues with MQTT startup, V10 logic
     25-Jun-2022  1.0b TRL - added DAC commands, change EQ default
+    28-Jun-2022  1.0c TRL - added B6 style display 
     
        
     Notes:  1)  Tested with 12.0.2(tasmota)
@@ -56,6 +57,8 @@ class SEEBURG_DRIVER : Driver
     static buf = []
     var BusyFlag           # 0 = busy
     var RandomPlay
+    static alpha = ["A", "B", "C", "D", "E", "F", "G", "H", "J", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "U", "V"]
+
 
 #- *************************************** -#   
     def init()
@@ -74,7 +77,7 @@ class SEEBURG_DRIVER : Driver
         
         tasmota.cmd("MP3Volume 80")                        # set volume
         tasmota.cmd("MP3EQ 4")                             # set EQ
-        self.buf.clear()                                   # flush the queue
+        self.buf.clear()                                   # flush the queue       
     end
     
  
@@ -92,7 +95,6 @@ class SEEBURG_DRIVER : Driver
         print("Mqtt Connected: ", MyObj3)
         mqtt.subscribe('RSF/JUKEBOX/#') 
     end
-    
     
 
 #- *************************************** -#
@@ -124,6 +126,7 @@ class SEEBURG_DRIVER : Driver
         self.buf.push(index)                                # add selection to list
         print ("Queue: ", self.buf)                         # print queue
     end
+
 
 #- *************************************** -# 
     def mqtt_data(topic, idx, strdata, bindata)
@@ -203,6 +206,7 @@ class SEEBURG_DRIVER : Driver
         self.BusyFlag = real(MyObj2['MP3Busy'] )                # get busy flag from MP3 driver
     end
 
+
 #- *************************************** -# 
     def process_wallbox(MyObj)
 
@@ -224,7 +228,12 @@ class SEEBURG_DRIVER : Driver
     def play(Index)
 
         if (self.BusyFlag == 1)                                  # if not busy...
-            print ("Playing Track: ", Index)
+
+            var a = int (Index/10)
+            var n = Index % 10
+            var alpha = string.format("%s%d",self.alpha[a],n)
+            print ("Playing Track: ", alpha, Index)
+
             var MyCmd = string.format("MP3Track %u", int (Index))
             tasmota.cmd(MyCmd)
             print ("Queue: ", self.buf)                          # print queue
