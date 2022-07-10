@@ -3,10 +3,7 @@
 #- 
    To load this file, compile Tasmota32 with the option as needed....
    Then Load the new binary image in your ESP32 and re-boot it. 
-   Open the web page for this device, select Console, then Manage File System
-   Rename this Berry file to "autoexec.be", then upload it to the ESP32 file system. 
-   Reboot Tasmota, this Berry file will run after re-booting.
-   
+   See notes below on using autoexec.be
  -#
    
  #- *************************************** -#
@@ -16,9 +13,10 @@
     DATE         REV  DESCRIPTION
     -----------  ---  ----------------------
     21-Jun-2022  1.0  TRL - 1st release
-    23-Jun-2022  1.0a TRL - fixed issues with MQTT startup, V10 logic
+    23-Jun-2022  1.0a TRL - fixed issues with MQTT startup, V10, V9 logic added
     25-Jun-2022  1.0b TRL - added DAC commands, change EQ default
-    28-Jun-2022  1.0c TRL - added B6 style display 
+    28-Jun-2022  1.0c TRL - added Seeburg 'B6' style track display 
+    09-Jul-2022  1.0d TRL - added Seeburg 'B6' style track selection via MQTT
     
        
     Notes:  1)  Tested with 12.0.2(tasmota)
@@ -36,11 +34,14 @@
    then upload Seeburg1.be it to the ESP32 file system. Also upload the Seeburg1-autoexec.be,
    and rename it to autoexec.be
    
-   Reboot Tasmota, the autoexec.be will run after re-booting, wait for MQTT to be connected,
+   Reboot Tasmota, the autoexec.be will run after re-booting, it will wait for MQTT to be connected,
    then it will load the Seeburg1.be file.
    
    Note: one must do a startup scrip that waits for MQTT to be started, prior to running this code...
       see: Seeburg1-autoexec.be
+
+      This requires the Seeburg X123 decoder running under Tasmota if you have a Seeburg 3WA wallbox, 
+      and the Tasmota MP3 driver after ver 12.0.3 of Tasmota
  
 -#
 
@@ -55,10 +56,10 @@ class SEEBURG_DRIVER : Driver
     
     #build an global array-->list to store wallbox selection
     static buf = []
-    var BusyFlag           # 0 = busy
-    var RandomPlay
     static alpha = ["A", "B", "C", "D", "E", "F", "G", "H", "J", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "U", "V"]
-
+    var BusyFlag                                          # 0 = busy
+    var RandomPlay
+    
 
 #- *************************************** -#   
     def init()
@@ -100,45 +101,65 @@ class SEEBURG_DRIVER : Driver
 #- *************************************** -#
     def queue(index)
 
-        var MaxQueueSize = 12
+        var MaxQueueSize = 16
 
-        if (index > 200) index = 200 end                    # do a bounds check
-        if (index <  0)  index = 0   end
+        if (index > 200) index = 200 end  
+        if (index <  1)  index = 1   end
 
-        if (index == 200)                                   # if we have a selection of: V10 index = 200, toggle random play 
-            self.buf.clear()                                # flush the queue 
+        if (index == 200)   
+            self.buf.clear()           
             if (self.RandomPlay == true )  self.RandomPlay = false return end
             if (self.RandomPlay == false ) self.RandomPlay = true  return end
-            return                                          # exit function
+            return            
         end
 
-        if (index == 199)                                   # if we have a track of: V9 index = 199. reset
+        if (index == 199)          
             tasmota.cmd("MP3Reset")
-            self.buf.clear()                                # flush the queue 
+            self.buf.clear()           
             self.RandomPlay = false
-            tasmota.cmd("MP3Volume 80")                     # set volume
+            tasmota.cmd("MP3Volume 80")      
             return
         end
 
-        self.RandomPlay = false                             # reset random play if we select anything else
-        if (self.buf.size() > MaxQueueSize) return  end     # do not add track selection to queue if full
+        self.RandomPlay = false                 
+        if (self.buf.size() > MaxQueueSize) return  end     
 
-        self.buf.push(index)                                # add selection to list
-        print ("Queue: ", self.buf)                         # print queue
+        self.buf.push(index)                            
+        print ("Queue: ", self.buf)        
     end
 
 
 #- *************************************** -# 
     def mqtt_data(topic, idx, strdata, bindata)
 
-        #print("Topic: ", topic) 
-        var MyCmd
+        var MyCmd 
+        var MQTT_Index
 
         if ( string.find(topic, "Track") > 0) 
-            var MQTT_Index = json.load(strdata)
-            if (MQTT_Index > 200) MQTT_Index = 200 end
-            if (MQTT_Index <  0)  MQTT_Index = 0   end
-            self.queue(MQTT_Index)                          # send to queue
+
+            if ((bindata[0] >= 0x30) && (bindata[0] <= 0x39))   # we have just a number         
+                MQTT_Index = int (strdata )
+            else                                                # we have an alpha + number
+                if ( ( (bindata[0] >= 0x41) && (bindata[0] <= 0x56) ) || ( (bindata[0] >= 0x61) && (bindata[0] <= 0x76) ) )    
+                    if ( (bindata[0] == 0x49) || (bindata[0] == 0x4f) ) return false end 
+                    if ( (bindata[0] == 0x69) || (bindata[0] == 0x6f) ) return false end 
+                
+                    MQTT_Index = int (bindata[0] & 0x1f )                   
+                    if (MQTT_Index > 8)  MQTT_Index = MQTT_Index -1 end                           
+                    if (MQTT_Index > 13) MQTT_Index = MQTT_Index -1 end        
+
+                    var number = int ( ( bindata [1] & 0x0f) )       
+                    if (number == 0) number = 10 end       
+                    MQTT_Index = ( (MQTT_Index -1) * 10 ) + number   
+                
+                else return false end
+            end
+        
+            print("MQTT_Index", MQTT_Index)
+            if (MQTT_Index > 200) MQTT_Index = 200 end   
+            if (MQTT_Index <  1)  MQTT_Index = 1   end
+            self.queue(MQTT_Index) 
+
             return true
         end
       
@@ -230,10 +251,10 @@ class SEEBURG_DRIVER : Driver
         if (self.BusyFlag == 1)                                  # if not busy...
 
             var a = int (Index/10)
-            var n = Index % 10
-            if (n == 0) a = a - 1 end                           # adjust for Seeburg number of 1-->0 (10)
+            var n = int (Index % 10)
+            if (n == 0) a = a - 1 end                           # adjust for Seeburg odd number of 1-->0 (10)
 
-            var alpha1 = string.format("%s%d",self.alpha[a],n)
+            var alpha1 = string.format("%s%d", self.alpha[a], int (n) )
             print ("Playing Track: ", alpha1, Index)
 
             var MyCmd = string.format("MP3Track %u", int (Index))
@@ -248,7 +269,7 @@ class SEEBURG_DRIVER : Driver
         if (self.RandomPlay == true )                           # select a random track, range 1 -> 198      
             if (self.BusyFlag == 1)                             # if not busy...
                 var random = math.rand() % (198 + 1 - 1) + 1    # rand() % (Max + 1 - Min) + Min
-                print ("Random Track:  ", random)
+                print ("Random Track:     ", random)
                 self.play(random)
                 return
             end
