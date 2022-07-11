@@ -1,4 +1,5 @@
 
+
 # Seeburg1.be 
 #- 
    To load this file, compile Tasmota32 with the option as needed....
@@ -76,7 +77,7 @@ class SEEBURG_DRIVER : Driver
 
         mqtt.subscribe('RSF/JUKEBOX/#')  
         
-        tasmota.cmd("MP3Volume 80")                        # set volume
+        tasmota.cmd("MP3Volume 100")                       # set volume
         tasmota.cmd("MP3EQ 4")                             # set EQ
         self.buf.clear()                                   # flush the queue       
     end
@@ -117,7 +118,8 @@ class SEEBURG_DRIVER : Driver
             tasmota.cmd("MP3Reset")
             self.buf.clear()           
             self.RandomPlay = false
-            tasmota.cmd("MP3Volume 80")      
+            tasmota.cmd("MP3Volume 100") 
+            tasmota.cmd("MP3EQ 4")                             # set EQ     
             return
         end
 
@@ -164,7 +166,7 @@ class SEEBURG_DRIVER : Driver
         end
       
         if ( string.find(topic, "Volume") > 0) 
-            var MyVolume = json.load(strdata)
+            var MyVolume = int (strdata) #json.load(strdata)
             if (MyVolume > 100) MyVolume = 100 end
             if (MyVolume <  0)  MyVolume = 0   end
             MyCmd = string.format("MP3Volume %u", int (MyVolume))
@@ -173,7 +175,7 @@ class SEEBURG_DRIVER : Driver
         end
 
         if ( string.find(topic, "EQ") > 0) 
-            var MyEQ = json.load(strdata)
+            var MyEQ = int (strdata) #json.load(strdata)
             if (MyEQ > 5)  MyEQ  = 5   end
             if (MyEQ < 0)  MyEQ  = 0   end
             MyCmd = string.format("MP3EQ %u", int (MyEQ))
@@ -182,7 +184,7 @@ class SEEBURG_DRIVER : Driver
         end
 
         if ( string.find(topic, "DAC") > 0) 
-            var MyDAC = json.load(strdata)
+            var MyDAC = int (strdata) #json.load(strdata)
             if (MyDAC > 1)  MyDAC  = 1   end
             if (MyDAC < 0)  MyDAC  = 0   end
             MyCmd = string.format("MP3DAC %u", int (MyDAC))
@@ -195,7 +197,7 @@ class SEEBURG_DRIVER : Driver
         # so, mininmal value is 256 + 1 = 257, max is  99 * 256 = 25,344 + 254 = 25,598
         # used caution, experimental at this time!
         if ( string.find(topic, "Folder") > 0) 
-            var MyFolder = json.load(strdata)
+            var MyFolder = int (strdata) #json.load(strdata)
             if (MyFolder > 25598)  MyFolder  = 257 end      # we use 257 at folder 1, track 1
             if (MyFolder < 257)    MyFolder  = 257 end
             MyCmd = string.format("MP3Folder %u", int (MyFolder))
@@ -206,7 +208,7 @@ class SEEBURG_DRIVER : Driver
         if ( string.find(topic, "Reset") > 0) 
             tasmota.cmd("MP3Reset")
             self.buf.clear()                                # flush the queue 
-            tasmota.cmd("MP3Volume 80")                     # set volume
+            tasmota.cmd("MP3Volume 100")                    # set volume
             tasmota.cmd("MP3EQ 4")                          # set EQ
             return true 
         end
@@ -255,7 +257,7 @@ class SEEBURG_DRIVER : Driver
             if (n == 0) a = a - 1 end                           # adjust for Seeburg odd number of 1-->0 (10)
 
             var alpha1 = string.format("%s%d", self.alpha[a], int (n) )
-            print ("Playing Track: ", alpha1, Index)
+            print ("Playing Track: ", alpha1, " --> ",Index)
 
             var MyCmd = string.format("MP3Track %u", int (Index))
             tasmota.cmd(MyCmd)
@@ -303,4 +305,5 @@ SEEBURG_Driver =   SEEBURG_DRIVER()
 tasmota.add_driver(SEEBURG_Driver)
 
 #- ************ The Very End ************* -#
+
 
