@@ -5,7 +5,7 @@ up and moved away... (hard to believe...)
 So it has been sitting unused for years... As I keep seeing it unused, I keep thinking about what to do with it... 
 Well, Tasmota came to the rescue...
 
-I found a number of references to projects with the Seeburg wallbox, many are listed below. But Derek Konigs post at:
+I found a number of references to projects with the Seeburg wall box, many are listed below. But "Derek Konigs" post at:
 ~~~
    http://hecgeek.blogspot.com/2017/10/wall-o-matic-interface-1.html
 ~~~
@@ -13,12 +13,12 @@ He has a very detailed post on how to decode and use the device to control his S
 His code was developed for the ESP-8266.
 
 I had a number of ESP32 here running Tasmota, so I adapted his code for ESP32 under Tasmota  (Yes.. it's a learning thing...)
-This was developed as a sensor under Tasmota, as pulses for the wallboxes are in the 30-50ms range and with a cycle time of ~2.1 seconds.
+This was developed as a sensor under Tasmota, as pulses for the wall boxes are in the 30-50ms range and with a cycle time of ~2.1 seconds.
 
 I now use A1-->A10 to control things around the house, and B1-->V8 for music selection.
 V10 selects random mode, and V9 resets the MP3 module.
 
-It was developed/tested under Tasmota 12.0.2 under Visual Studio Code with PaltformIO.
+It was developed/tested under Tasmota 12.0.2 and updated to 13.0.0.3 under Visual Studio Code with PaltformIO.
 
 To keep my sanity, I first developed a 3WA-3W1 emulator written in C under Arduino, 
 I program this into another ESP32 to send the selection pulses to my Tasmota decoder,
@@ -30,21 +30,21 @@ This program expects a pulse on a pin from a Seeburg 3WA or 3W1 Wallbox...
 it decodes the pulses and sends the decoded information as an MQTT JSON object,
 that I use in Node-Red to make decisions.
   
-It supports the 3WA-200 (also 3WA-160) or the 3W1-100 wallboxies. One or the other is selected
+It supports the 3WA-200 (also 3WA-160) or the 3W1-100 wall boxes. One or the other is selected
 in the configure module or template (NOT both!). 'Seeburg 3WA' or 'Seeburg 3W1'. 
 
 There is also an optional status LED that toggles on every pulse edge. 'Seeburg LED'
  
-The wallboxes send out a 24V AC pulse, that must be rectified and converted to 3.3v.
+The wall boxes send out a 24V AC pulse, that must be rectified and converted to 3.3v.
 See the URL above for detail on the converter from 24VAC...
  
 Added a small PCB with an Adafruit Feather ESP32, decoder, power supply, and a DFRobot DFR0299 MP3 player.
-(Flyron Technology Co), Schematic and PCB files are located on Github. Parts in the design are 
+(Flyron Technology Co), Schematic and PCB files are located on GitHub. Parts in the design are 
 what I had on hand.  The PC board was made by Seeed Fusion.
 
 There is now a Berry script that connects the 3WA code with the Tasmota MP3 player, this can take 
-command from the 3WA wallbox or via MQTT, making it a virtual jukebox. It will work without the 
-3WA wallbox as a general-purpose MQTT control jukebox. It would be easy to expand its track selection
+command from the 3WA wall box or via MQTT, making it a virtual jukebox. It will work without the 
+3WA wall box as a general-purpose MQTT control jukebox. It would be easy to expand its track selection
 from the current 200 track. Selecting V10, set-reset random mode, and V9 will reset the MP3 player.
   
 ~~~
