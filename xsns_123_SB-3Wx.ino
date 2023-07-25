@@ -2,7 +2,7 @@
   xsns_123_Seeburg_3Wx.ino - Seeburg 3WA-3W1 Wallbox sensor support for Tasmota)
 
   tom@lafleur.us
-  Copyright (C) 2022  Tom Lafleur and Theo Arends
+  Copyright (C) 2022, 2023 Tom Lafleur and Theo Arends
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,16 +27,18 @@
  *  18-May-2022  1.0a  Update comments and re-sync LED if needed
  *  24-May-2022  1.0b  Fixed timeout timer
  *  01-Jun-2022  1.0c  Remove addlog from interrupt logic
+ *  23-Jul-2023  1.0d  Move to Tasmota 13.x.x.x
+ *                     change from uint8_t --> bool Xsns123(uint32_t function)
  *
- *  Notes:  1)  Tested with TASMOTA  11.1.0.3dev
+ *  Notes:  1)  Tested with TASMOTA  13.0.0.3dev 23jul2023
  *          2)  ESP32, ESP32S3
  *          3)  All addlog statements have been commented out of interrupt functions
- *                as they can cause reboots. (they were use for debug only)
+ *                as they can cause reboots. (they were used for debugging only)
  *
  *
  *    TODO:
  *          1)  Add coin relay outputs, with MQTT commands.
- *          2)  
+ *          2)  Add command to play a song to MP3 player
  *          3)
  *
  *    tom@lafleur.us
@@ -52,14 +54,14 @@
  * 
  * It support the 3WA-200 or the 3W1-100 wallboxies. One or the other is selected
  *  in the configure module or template. 'Seeburg 3WA' or 'Seeburg 3W1'. There is also 
- *  an status LED that toggles on every pulse edge. 'Seeburg LED'
+ *  a status LED that toggles on every pulse edge. 'Seeburg LED'
  *
- * The wallboxes send out a 24V AC pulse, that must be rectified and converted to 3.3v
+ * The wall boxes send out a 24V AC pulse, that must be rectified and converted to 3.3v
  *
  * This code was adapted from Derek Konigs excellent post at:
  *    http://hecgeek.blogspot.com/2017/10/wall-o-matic-interface-1.html
  *
- * It makes use of a FreeRTOS software timer, to timeout improper pulse streams
+ * 
  * 
  * MQTT JSON frame:
  * ---- Real Time...
@@ -83,9 +85,9 @@
  * 
  * 
  * 
- *   There is a very small chance of a race condition, from when the code has finish decoding 
- *    the pulse stream in the ISR until we send the data out on the one second loop. One could  
- *    quickly push another set of button during that time missing a selection, but unlikely.
+ *   There is a very small chance of a race condition, from when the code has finished decoding 
+ *    the pulse stream in the ISR until we send the data out on the one-second loop. One could  
+ *    quickly push another set of buttons during that time missing a selection, but unlikely.
  * 
  *   
  *
@@ -96,15 +98,15 @@
 /*
 Changes made to Tasmota base code... See integration notes...
 
-tasmota/tasmota_template.h  11.1.0.3
+inclued/tasmota/tasmota_template.h  11.1.0.3
 
-line 190
+line 214
 GPIO_SB_3WA, GPIO_SB_3W1, GPIO_SB_LED,
 
-line 424
+line 475
 D_SENSOR_SB_3WA "|" D_SENSOR_SB_3W1 "|" D_SENSOR_SB_LED "|"     // <---------------  TRL 
 
-line 499
+line 559
 #ifdef USE_SB3Wx
   AGPIO(GPIO_SB_3WA),                  // xsns_123              // <---------------  TRL
   AGPIO(GPIO_SB_3W1),
@@ -112,7 +114,7 @@ line 499
 #endif
 
 tasmota/language/en_GB.h
-at line 875
+at line 937
 #define D_SENSOR_SB_3WA        "Seeburg 3WA"                    // <---------------  TRL
 #define D_SENSOR_SB_3W1        "Seeburg 3W1"
 #define D_SENSOR_SB_LED        "Seeburg Led"
@@ -154,29 +156,31 @@ typedef enum wallbox_type
 #define MAX_WB_SELECTION_PULSES 64              // Maximum accumulated length of a pulse stream 
 #define DEBOUNCE_GAP 10000                      // Minimum allowable pulse gap, in microseconds
 #define D_Wallbox "Wallbox"
+#define MaxTimeout 3000
+//#define Debug_SB_ISR                            // debug in ISR loop
 
 const char  WB_LETTERS[] = "ABCDEFGHJKLMNPQRSTUV";    // missing 'I' and 'O' as they are not used
 
 volatile    bool SBLedState =     false;
 volatile    bool MQTT_Send_Flag = false;
 
-volatile    wallbox_type wb_active_type;
-volatile    uint32_t    wb_pulse_last_value;
-volatile    uint32_t    wb_pulse_last_time;
-volatile    uint32_t    wb_pulse_index;
-volatile    uint32_t    wb_pulse_timer;
-volatile    uint32_t    currentPulseValue;
+volatile    wallbox_type  wb_active_type;
+volatile    uint32_t      wb_pulse_last_value;
+volatile    uint32_t      wb_pulse_last_time;
+volatile    uint32_t      wb_pulse_index;
+volatile    uint32_t      wb_pulse_timer;
+volatile    uint32_t      currentPulseValue;
 
 wb_selection_pulse wb_pulse_list[MAX_WB_SELECTION_PULSES];
 
-uint32_t    timeout = 3000;
+uint32_t    timeout = MaxTimeout;
 char        letter;
 uint32_t    letter_count;
 uint32_t    number;
 
 
 #include "esp_timer.h"
-esp_timer_handle_t _timer;
+esp_timer_handle_t  _timer;
 
 portMUX_TYPE SBmux = portMUX_INITIALIZER_UNLOCKED;
 
@@ -226,7 +230,7 @@ void IRAM_ATTR wb_pulse_list_clear()
 
 
 /* ******************************************************** */
-// this is called from timer timeout in ISR...
+//This is called from timer timeout in ISR...
 void IRAM_ATTR wb_pulse_timer_func(void* arg)
 {
     bool result;
@@ -264,7 +268,7 @@ void IRAM_ATTR wb_pulse_timer_func(void* arg)
 
     if (result) 
     {
-      ////AddLog( LOG_LEVEL_INFO, PSTR("---> Selection: %c%d"), letter, number);
+      ////AddLog( LOG_LEVEL_INFO, PSTR("---> Selection: %c%d"), letter, number); 
 
       // Initialize state variables
       wb_pulse_last_value = 0;
@@ -275,7 +279,7 @@ void IRAM_ATTR wb_pulse_timer_func(void* arg)
         
     } else 
     { 
-      ////AddLog( LOG_LEVEL_INFO, PSTR("%s"), "--> Timeout decode error\r\n");
+      ////AddLog( LOG_LEVEL_INFO, PSTR("%s"), "--> Timeout decode error\r\n"); // <-----------------------  TRL
     }   // error if here
   
   //interrupts();                    // Re-enable interrupts
@@ -284,14 +288,13 @@ void IRAM_ATTR wb_pulse_timer_func(void* arg)
 
 
 /* ******************************************************** */
-/*
- * Count the signal pulses.
- * Wallbox: Seeburg Wall-O-Matic 3W-200
+ /* Count the signal pulses.
+ *  Wallbox: Seeburg Wall-O-Matic 3W-200
  */
-// This is called from an ISR
+// This is called from wb_pulse_timer_func(void* arg) within an ISR
 bool IRAM_ATTR wb_pulse_list_tally_3wa_200(char *letter, uint32_t *number)
 {
-    uint32_t i;
+     uint32_t i;
      uint32_t p1 = 0;
      uint32_t p2 = 0;
      bool delimiter = false;
@@ -304,7 +307,7 @@ bool IRAM_ATTR wb_pulse_list_tally_3wa_200(char *letter, uint32_t *number)
         if (p1 > 0 && !delimiter && wb_pulse_list[i].elapsed > 125000) 
         {
             delimiter = true;
-            ////AddLog( LOG_LEVEL_DEBUG, PSTR("%s"), "---- Number Gap ----\r\n");
+            ////AddLog( LOG_LEVEL_INFO, PSTR("%s"), "---- Number Gap ----\r\n");
         }
         if (!delimiter) {p1++;}
         else            {p2++;}
@@ -316,7 +319,7 @@ bool IRAM_ATTR wb_pulse_list_tally_3wa_200(char *letter, uint32_t *number)
         return false;
     }
 
-    // convert pulses to numeric values
+    //Convert pulses to numeric values
     letter_val = WB_LETTERS[p1 - 2];
     letter_count = p1-1;
     number_val = p2;
@@ -331,11 +334,10 @@ bool IRAM_ATTR wb_pulse_list_tally_3wa_200(char *letter, uint32_t *number)
 
 
 /* ******************************************************** */
-/*
- * Count the signal pulses.
- * Wallbox: Seeburg Wall-O-Matic 3W1-100
+ /* Count the signal pulses.
+ *  Wallbox: Seeburg Wall-O-Matic 3W1-100
  */
-// This is called from an ISR
+// This is called from wb_pulse_timer_func(void* arg) within an ISR
 bool IRAM_ATTR wb_pulse_list_tally_3w1_100(char *letter, uint32_t *number)
 {
     uint32_t i;
@@ -417,23 +419,23 @@ void IRAM_ATTR SB_Isr(void)
     digitalWrite(Pin(GPIO_SB_LED), SBLedState);
   } 
 
-  timeout = 3000;                                 // cycle time is ~2100ms, so we set timeout to 3000ms
+  timeout = MaxTimeout;                                 // cycle time is ~2100ms, so we set timeout to 3000ms
 
   if (PinUsed(GPIO_SB_3W1)) currentPulseValue = digitalRead(Pin(GPIO_SB_3W1));
   if (PinUsed(GPIO_SB_3WA)) currentPulseValue = digitalRead(Pin(GPIO_SB_3WA));
 
-  uint32_t currentPulseTime = micros();           // system_get_time();
+  uint32_t currentPulseTime = micros();                 // system_get_time();
 
   // Do something
   if(currentPulseValue != wb_pulse_last_value) 
   {      
-    // lets stop the timer...
+    //let's stop the timer...
     Ticker_detach(); 
 
     uint32_t elapsed = currentPulseTime - wb_pulse_last_time;
     if (currentPulseValue == 1) 
     {
-      ////AddLog( LOG_LEVEL_DEBUG, PSTR("Gap:   %dms"), elapsed / 1000);
+      ////AddLog( LOG_LEVEL_INFO, PSTR("Gap:   %dms"), elapsed / 1000);
       if (wb_pulse_list[wb_pulse_index].duration == 0) 
       {
         wb_pulse_list[wb_pulse_index].elapsed = elapsed;
@@ -448,7 +450,7 @@ void IRAM_ATTR SB_Isr(void)
 
     else if (currentPulseValue == 0) 
     {
-      ////AddLog( LOG_LEVEL_DEBUG, PSTR("Pulse: %dms"), elapsed / 1000); 
+      ////AddLog( LOG_LEVEL_INFO, PSTR("Pulse: %dms"), elapsed / 1000); 
       if (wb_pulse_list[wb_pulse_index].elapsed > 0) 
       {
         if (wb_pulse_index > 0 && wb_pulse_list[wb_pulse_index].elapsed < DEBOUNCE_GAP) 
@@ -476,6 +478,7 @@ void IRAM_ATTR SB_Isr(void)
        ////AddLog( LOG_LEVEL_INFO, PSTR("%s"), "*** In ISR, Pulse P2 error\n"); 
       }
     }
+
     if (wb_pulse_index >= MAX_WB_SELECTION_PULSES) 
     {
       ////AddLog( LOG_LEVEL_INFO, PSTR("%s"), "*** In ISR, Max Pulse error\n");
@@ -504,10 +507,11 @@ void IRAM_ATTR SB_Isr(void)
         wb_pulse_list_clear();
       }
     }
+
     wb_pulse_last_value = currentPulseValue;
     wb_pulse_last_time  = currentPulseTime; 
   
-    // this will start or restart our timer
+    //This will start or restart our timer
     Ticker_attach_ms(timeout, false, wb_pulse_timer_func, 0); 
   }
 }
@@ -516,12 +520,12 @@ void IRAM_ATTR SB_Isr(void)
 /* ******************************************************** */
 void SB_Init(void)
 {
- // This is an optional LED indicator of Seeburg pulse's from the wallbox
+ // This is an optional LED indicator of Seeburg pulses from the wall box
   if (PinUsed(GPIO_SB_LED)) 
   {
-       SBLedState  =  false;
-       pinMode(Pin(GPIO_SB_LED), OUTPUT);   // set pin to output
-       digitalWrite(Pin(GPIO_SB_LED), 0);   // turn off led for now
+    SBLedState  =  false;
+    pinMode(Pin(GPIO_SB_LED), OUTPUT);   // set pin to output
+    digitalWrite(Pin(GPIO_SB_LED), 0);   // turn off led for now
   }
 
   if (PinUsed(GPIO_SB_3WA) || PinUsed(GPIO_SB_3W1)) 
@@ -542,7 +546,7 @@ void SB_Init(void)
     if (PinUsed(GPIO_SB_3WA))
       {
         wb_active_type      = SEEBURG_3WA_200;
-        ( LOG_LEVEL_DEBUG, PSTR("%s"), "*** 3WA Interrupt added!");
+        AddLog( LOG_LEVEL_DEBUG, PSTR("%s"), "*** 3WA Interrupt added!");
         attachInterrupt(Pin(GPIO_SB_3WA), SB_Isr, CHANGE);
       }
 
@@ -591,7 +595,7 @@ void SB_Show(bool json)
        {
         ResponseAppend_P(PSTR(",\"Wallbox\":{"));
         if (wb_active_type == SEEBURG_3W1_100)  ResponseAppend_P(PSTR("\"Model\":\"%s\","), "3W1" );
-        if (wb_active_type == SEEBURG_3WA_200) ResponseAppend_P(PSTR("\"Model\":\"%s\","), "3WA" );
+        if (wb_active_type == SEEBURG_3WA_200)  ResponseAppend_P(PSTR("\"Model\":\"%s\","), "3WA" );
         ResponseAppend_P(PSTR("\"Last_Selection\":\"%c%u\""), letter, number);
         ResponseJsonEnd();
 
@@ -635,7 +639,7 @@ bool SB_Commands(void)
 /*********************************************************************************************\
  * Interface
 \*********************************************************************************************/
-bool Xsns123(uint8_t function)
+bool Xsns123(uint32_t function)
 {
   bool result = false;
   
@@ -685,3 +689,5 @@ bool Xsns123(uint8_t function)
 #endif    // end of USE_SB3Wx
 
 /* ************************* The Very End ************************ */
+
+  
