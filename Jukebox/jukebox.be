@@ -1,5 +1,4 @@
 
-
 # Seeburg1.be 
 #- 
    To load this file, compile Tasmota32 with the option as needed....
@@ -18,9 +17,12 @@
     25-Jun-2022  1.0b TRL - added DAC commands, change EQ default
     28-Jun-2022  1.0c TRL - added Seeburg 'B6' style track display 
     09-Jul-2022  1.0d TRL - added Seeburg 'B6' style track selection via MQTT
+    26-Jul-2022  1.0e TRL - re-seed rand at each play
+    22-Jul-2023  1.0f TRL - removed 
+    23-Jul-2023  1.0g TRL - moved to tasmota 13.0.0.3, fixed mqtt_data return = true
     
        
-    Notes:  1)  Tested with 12.0.2(tasmota)
+    Notes:  1)  Tested with 13.0.0.3(tasmota)
         
     ToDo:   1)
 
@@ -73,13 +75,15 @@ class SEEBURG_DRIVER : Driver
         self.BusyFlag    = 0                               #  0 = busy
         self.RandomPlay  = false
 
-        math.srand( int (tasmota.rtc()['utc'] ))           # seed random number
+        # math.srand( int (tasmota.rtc()['utc'] ))         # seed random number
 
         mqtt.subscribe('RSF/JUKEBOX/#')  
         
         tasmota.cmd("MP3Volume 100")                       # set volume
         tasmota.cmd("MP3EQ 4")                             # set EQ
-        self.buf.clear()                                   # flush the queue       
+        
+        self.buf.clear()                                   # flush the queue
+        
     end
     
  
@@ -124,7 +128,7 @@ class SEEBURG_DRIVER : Driver
         end
 
         self.RandomPlay = false                 
-        if (self.buf.size() > MaxQueueSize) return  end     
+        if (self.buf.size() >= MaxQueueSize) return  end     
 
         self.buf.push(index)                            
         print ("Queue: ", self.buf)        
@@ -150,11 +154,11 @@ class SEEBURG_DRIVER : Driver
                     if (MQTT_Index > 8)  MQTT_Index = MQTT_Index -1 end                           
                     if (MQTT_Index > 13) MQTT_Index = MQTT_Index -1 end        
 
-                    var number = int ( ( bindata [1] & 0x0f) )       
-                    if (number == 0) number = 10 end       
-                    MQTT_Index = ( (MQTT_Index -1) * 10 ) + number   
+                    var mynumber = int ( ( bindata [1] & 0x0f) )       
+                    if (mynumber == 0) mynumber = 10 end       
+                    MQTT_Index = ( (MQTT_Index -1) * 10 ) + mynumber   
                 
-                else return false end
+                else return true end
             end
         
             print("MQTT_Index", MQTT_Index)
@@ -166,7 +170,7 @@ class SEEBURG_DRIVER : Driver
         end
       
         if ( string.find(topic, "Volume") > 0) 
-            var MyVolume = int (strdata) #json.load(strdata)
+            var MyVolume = int (strdata)                    #json.load(strdata)
             if (MyVolume > 100) MyVolume = 100 end
             if (MyVolume <  0)  MyVolume = 0   end
             MyCmd = string.format("MP3Volume %u", int (MyVolume))
@@ -217,9 +221,8 @@ class SEEBURG_DRIVER : Driver
         if ( string.find(topic, "Play")  > 0) tasmota.cmd("MP3Play")  return true end
         if ( string.find(topic, "Stop")  > 0) tasmota.cmd("MP3Stop")  return true end
 
-        return false
+        return true
     end
-
 
 #- *************************************** -# 
     def process_MP3_busy(MyObj2) 
@@ -235,8 +238,8 @@ class SEEBURG_DRIVER : Driver
 
         if  MyObj == nil print("Bad Obj")       return end
        
-        #if !(MyObj.contains('Number_Index'))    return end
-        #if !(MyObj.contains('Letter_Index'))    return end
+        #if !(MyObj.contains('Number_Index'))   return end
+        #if !(MyObj.contains('Letter_Index'))   return end
         if !(MyObj.contains('Selection_Index')) return end      
             
         #var num = real(MyObj['Number_Index'] )
@@ -250,14 +253,14 @@ class SEEBURG_DRIVER : Driver
 #- *************************************** -#
     def play(Index)
 
-        if (self.BusyFlag == 1)                                  # if not busy...
+        if (self.BusyFlag == 1)                                  # if not busy = 1...
 
             var a = int (Index/10)
             var n = int (Index % 10)
-            if (n == 0) a = a - 1 end                           # adjust for Seeburg odd number of 1-->0 (10)
+            if (n == 0) a = a - 1 end                            # adjust for Seeburg odd number of 1-->0 (10)
 
             var alpha1 = string.format("%s%d", self.alpha[a], int (n) )
-            print ("Playing Track: ", alpha1, " --> ",Index)
+            print ("Playing Track: ", Index, "-->", alpha1)
 
             var MyCmd = string.format("MP3Track %u", int (Index))
             tasmota.cmd(MyCmd)
@@ -265,13 +268,15 @@ class SEEBURG_DRIVER : Driver
         end
     end
 
+
 #- *************************************** -#
     def every_second()
 
         if (self.RandomPlay == true )                           # select a random track, range 1 -> 198      
             if (self.BusyFlag == 1)                             # if not busy...
+                math.srand( int (tasmota.rtc()['utc'] ))        # seed random number
                 var random = math.rand() % (198 + 1 - 1) + 1    # rand() % (Max + 1 - Min) + Min
-                print ("Random Track:     ", random)
+                print ("Random Track:  ", random)
                 self.play(random)
                 return
             end
@@ -283,18 +288,7 @@ class SEEBURG_DRIVER : Driver
             self.play(NextTrack)
         end
     end
-  
-   
-#- *************************************** -#
-    def web_sensor()
-        #tasmota.web_send_decimal(msg)
-    end
-  
 
-#- *************************************** -#
-    def json_append()
-        #tasmota.response_append(msg)     
-    end
   
 
 end     # end of class SEEBURG_Driver : Driver
@@ -305,5 +299,4 @@ SEEBURG_Driver =   SEEBURG_DRIVER()
 tasmota.add_driver(SEEBURG_Driver)
 
 #- ************ The Very End ************* -#
-
 
