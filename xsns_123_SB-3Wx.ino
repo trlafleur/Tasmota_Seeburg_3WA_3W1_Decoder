@@ -29,7 +29,7 @@
  *  01-Jun-2022 TRL 1.0c  Remove addlog from interrupt logic
  *  23-Jul-2023 TRL 1.0d  Move to Tasmota 13.x.x.x
  *                        change from uint8_t --> bool Xsns123(uint32_t function)
- *  18-Jul-2023 TRL 1.0e  Remove sending info in telperod
+ *  28-Jul-2023 TRL 1.0e  Remove sending info in telperod
  *
  *  Notes:  1)  Tested with TASMOTA  13.0.0.3dev 23-Jul-2023
  *          2)  ESP32, ESP32S3
