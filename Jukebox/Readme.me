@@ -1,12 +1,12 @@
 This is a Jukebox player in Berry, which requires a modified MP3 driver (now part of Tasmota 12.0.3) 
 and a 3WA decoder driver to be added to the Tasmota build. It also can be controlled via MQTT messages.
 
-   To load this file, compile Tasmota32 with the option as needed...
+   To load this file, compile Tasmota32 with the xsns123 drive option as needed...
    Then Load the new binary image in your ESP32 and re-boot it. 
    
    Open the web page for this device, select Console, then Manage File System,
-   then upload jukebox.be as Seeburg1.be it to the ESP32 file system. Also, upload the Seeburg1-autoexec.be,
-   and rename it to autoexec.be
+   then upload jukebox.be or Seeburg2h.be as Seeburg1.be it to the ESP32 file system. 
+   Also, upload the Seeburg1-autoexec.be, and rename it to autoexec.be
    
    Reboot Tasmota, the autoexec.be will run after rebooting, it will wait for MQTT to be connected,
    then it will load the Seeburg1.be file.
