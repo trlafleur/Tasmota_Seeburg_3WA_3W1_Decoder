@@ -2,7 +2,7 @@
   xsns_123_Seeburg_3Wx.ino - Seeburg 3WA-3W1 Wallbox sensor support for Tasmota)
 
   tom@lafleur.us
-  Copyright (C) 2022, 2023 Tom Lafleur and Theo Arends
+  Copyright (C) 2022  Tom Lafleur and Theo Arends
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,19 +21,20 @@
 /* **************************************************************************************
  * CHANGE LOG:
  *
- *  DATE         REV  DESCRIPTION
- *  -----------  ---  ----------------------------------------------------------
- *  12-May-2022  1.0   TRL - first build
- *  18-May-2022  1.0a  Update comments and re-sync LED if needed
- *  24-May-2022  1.0b  Fixed timeout timer
- *  01-Jun-2022  1.0c  Remove addlog from interrupt logic
- *  23-Jul-2023  1.0d  Move to Tasmota 13.x.x.x
- *                     change from uint8_t --> bool Xsns123(uint32_t function)
+ *  DATE        Who REV  DESCRIPTION
+ *  ----------- --- ---  ----------------------------------------------------------
+ *  12-May-2022 TRL 1.0   TRL - first build
+ *  18-May-2022 TRL 1.0a  Update comments and re-sync LED if needed
+ *  24-May-2022 TRL 1.0b  Fixed timeout timer
+ *  01-Jun-2022 TRL 1.0c  Remove addlog from interrupt logic
+ *  23-Jul-2023 TRL 1.0d  Move to Tasmota 13.x.x.x
+ *                        change from uint8_t --> bool Xsns123(uint32_t function)
+ *  18-Jul-2023 TRL 1.0e  Remove sending info in telperod
  *
- *  Notes:  1)  Tested with TASMOTA  13.0.0.3dev 23jul2023
+ *  Notes:  1)  Tested with TASMOTA  13.0.0.3dev 23-Jul-2023
  *          2)  ESP32, ESP32S3
  *          3)  All addlog statements have been commented out of interrupt functions
- *                as they can cause reboots. (they were used for debugging only)
+ *                as they can cause reboots. (they were use for debug only)
  *
  *
  *    TODO:
@@ -54,9 +55,9 @@
  * 
  * It support the 3WA-200 or the 3W1-100 wallboxies. One or the other is selected
  *  in the configure module or template. 'Seeburg 3WA' or 'Seeburg 3W1'. There is also 
- *  a status LED that toggles on every pulse edge. 'Seeburg LED'
+ *  an status LED that toggles on every pulse edge. 'Seeburg LED'
  *
- * The wall boxes send out a 24V AC pulse, that must be rectified and converted to 3.3v
+ * The wallboxes send out a 24V AC pulse, that must be rectified and converted to 3.3v
  *
  * This code was adapted from Derek Konigs excellent post at:
  *    http://hecgeek.blogspot.com/2017/10/wall-o-matic-interface-1.html
@@ -85,9 +86,9 @@
  * 
  * 
  * 
- *   There is a very small chance of a race condition, from when the code has finished decoding 
- *    the pulse stream in the ISR until we send the data out on the one-second loop. One could  
- *    quickly push another set of buttons during that time missing a selection, but unlikely.
+ *   There is a very small chance of a race condition, from when the code has finish decoding 
+ *    the pulse stream in the ISR until we send the data out on the one second loop. One could  
+ *    quickly push another set of button during that time missing a selection, but unlikely.
  * 
  *   
  *
@@ -98,10 +99,10 @@
 /*
 Changes made to Tasmota base code... See integration notes...
 
-inclued/tasmota/tasmota_template.h  11.1.0.3
+include/tasmota/tasmota_template.h  13.0.0.3
 
 line 214
-GPIO_SB_3WA, GPIO_SB_3W1, GPIO_SB_LED,
+GPIO_SB_3WA, GPIO_SB_3W1, GPIO_SB_LED,                          // <---------------  TRL
 
 line 475
 D_SENSOR_SB_3WA "|" D_SENSOR_SB_3W1 "|" D_SENSOR_SB_LED "|"     // <---------------  TRL 
@@ -115,6 +116,7 @@ line 559
 
 tasmota/language/en_GB.h
 at line 937
+// XSNS_123 Seeburg 3WA Jukebox
 #define D_SENSOR_SB_3WA        "Seeburg 3WA"                    // <---------------  TRL
 #define D_SENSOR_SB_3W1        "Seeburg 3W1"
 #define D_SENSOR_SB_LED        "Seeburg Led"
@@ -230,7 +232,7 @@ void IRAM_ATTR wb_pulse_list_clear()
 
 
 /* ******************************************************** */
-//This is called from timer timeout in ISR...
+// this is called from timer timeout in ISR...
 void IRAM_ATTR wb_pulse_timer_func(void* arg)
 {
     bool result;
@@ -319,7 +321,7 @@ bool IRAM_ATTR wb_pulse_list_tally_3wa_200(char *letter, uint32_t *number)
         return false;
     }
 
-    //Convert pulses to numeric values
+    // convert pulses to numeric values
     letter_val = WB_LETTERS[p1 - 2];
     letter_count = p1-1;
     number_val = p2;
@@ -429,7 +431,7 @@ void IRAM_ATTR SB_Isr(void)
   // Do something
   if(currentPulseValue != wb_pulse_last_value) 
   {      
-    //let's stop the timer...
+    // lets stop the timer...
     Ticker_detach(); 
 
     uint32_t elapsed = currentPulseTime - wb_pulse_last_time;
@@ -511,7 +513,7 @@ void IRAM_ATTR SB_Isr(void)
     wb_pulse_last_value = currentPulseValue;
     wb_pulse_last_time  = currentPulseTime; 
   
-    //This will start or restart our timer
+    // this will start or restart our timer
     Ticker_attach_ms(timeout, false, wb_pulse_timer_func, 0); 
   }
 }
@@ -520,7 +522,7 @@ void IRAM_ATTR SB_Isr(void)
 /* ******************************************************** */
 void SB_Init(void)
 {
- // This is an optional LED indicator of Seeburg pulses from the wall box
+ // This is an optional LED indicator of Seeburg pulse's from the wallbox
   if (PinUsed(GPIO_SB_LED)) 
   {
     SBLedState  =  false;
@@ -593,11 +595,11 @@ void SB_Show(bool json)
      {
        if (json)                // send MQTT
        {
-        ResponseAppend_P(PSTR(",\"Wallbox\":{"));
-        if (wb_active_type == SEEBURG_3W1_100)  ResponseAppend_P(PSTR("\"Model\":\"%s\","), "3W1" );
-        if (wb_active_type == SEEBURG_3WA_200)  ResponseAppend_P(PSTR("\"Model\":\"%s\","), "3WA" );
-        ResponseAppend_P(PSTR("\"Last_Selection\":\"%c%u\""), letter, number);
-        ResponseJsonEnd();
+       //  ResponseAppend_P(PSTR(",\"Wallbox\":{"));
+       // if (wb_active_type == SEEBURG_3W1_100)  ResponseAppend_P(PSTR("\"Model\":\"%s\","), "3W1" );
+       // if (wb_active_type == SEEBURG_3WA_200)  ResponseAppend_P(PSTR("\"Model\":\"%s\","), "3WA" );
+       // ResponseAppend_P(PSTR("\"Last_Selection\":\"%c%u\""), letter, number);
+       // ResponseJsonEnd();
 
  #ifdef USE_WEBSERVER
        }   // end of:  if (json)
@@ -689,5 +691,3 @@ bool Xsns123(uint32_t function)
 #endif    // end of USE_SB3Wx
 
 /* ************************* The Very End ************************ */
-
-  
