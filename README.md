@@ -51,7 +51,7 @@ from the current 200 track. Selecting V10, set-reset random mode, and V9 will re
 
 This project requires some knowledge of Tasmota and the ability to modify files and compile a special version that includes the 'xsns123' driver in the build. It also requires some working knowledge of the Berry scripting language used in Tasmota.
 
-There is also a hardware component that needs to be built and connect the Seeburg wall box to the ESP32 processor used with Tasmota.
+There is also a hardware component that needs to be built to connect the Seeburg wall box to the ESP32 processor used with Tasmota.
 
 
 ~~~
