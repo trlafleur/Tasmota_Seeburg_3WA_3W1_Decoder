@@ -49,9 +49,9 @@ command from the 3WA wall box or via MQTT, making it a virtual jukebox. It will 
 3WA wall box as a general-purpose MQTT control jukebox. It would be easy to expand its track selection
 from the current 200 track. Selecting V10, set-reset random mode, and V9 will reset the MP3 player.
 
-This project requires some knowledge of Tasmota and the ability to modify files and compile a special version the includes the xsns123 driver into the build. It also requires some working knowledge of the Berry scripting language used in Tasmota.
+This project requires some knowledge of Tasmota and the ability to modify files and compile a special version that includes the 'xsns123' driver in the build. It also requires some working knowledge of the Berry scripting language used in Tasmota.
 
-There is also a hardware component that need to be built and connecting the Seeburg wall box to the ESP32 processor used with Tasmota.
+There is also a hardware component that needs to be built and connect the Seeburg wall box to the ESP32 processor used with Tasmota.
 
 
 ~~~
@@ -66,7 +66,7 @@ MQTT JSON frame:
    }
   }
   
-  ----> At Telemetry period
+  ----> At the Telemetry period
   {
    "Time":"2022-05-17T10:54:28",
    "Wallbox":{
@@ -74,7 +74,6 @@ MQTT JSON frame:
        "Last_Selection":"A10"
    }
   }
-  
   ~~~
 
 ~~~
