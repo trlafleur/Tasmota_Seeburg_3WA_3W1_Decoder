@@ -26,7 +26,7 @@ as the 3WA-200 is very noisy... and my finger was tired of pressing the button..
 
 There is now a Standalone version for Arduino without Tasmota.
 
-This program expects a pulse on a pin from a Seeburg 3WA or 3W1 Wallbox...
+This program expects a pulse on a pin from a Seeburg 3WA or 3W1 Wall box...
 it decodes the pulses and sends the decoded information as an MQTT JSON object,
 that I use in Node-Red to make decisions.
   
@@ -48,7 +48,12 @@ There is now a Berry script that connects the 3WA code with the Tasmota MP3 play
 command from the 3WA wall box or via MQTT, making it a virtual jukebox. It will work without the 
 3WA wall box as a general-purpose MQTT control jukebox. It would be easy to expand its track selection
 from the current 200 track. Selecting V10, set-reset random mode, and V9 will reset the MP3 player.
-  
+
+This project requires some knowledge of Tasmota and the ability to modify files and compile a special version the includes the xsns123 driver into the build. It also requires some working knowledge of the Berry scripting language used in Tasmota.
+
+There is also a hardware component that need to be built and connecting the Seeburg wall box to the ESP32 processor used with Tasmota.
+
+
 ~~~
 MQTT JSON frame:
   ----> Real Time...
