@@ -42,6 +42,8 @@ Added a small PCB with an Adafruit Feather ESP32, decoder, power supply, and a D
 (Flyron Technology Co), Schematic and PCB files are located on GitHub. Parts in the design are 
 what I had on hand.  The PC board was made by Seeed Fusion.
 
+There are now two PCB decoder boards, the Original version as above with decoder and MP3 player and a new mini-version that is about 1x2in that just contains the decoder and ESP32 processor that can be embedded inside the wall box.
+
 There is now a Berry script that connects the 3WA code with the Tasmota MP3 player, this can take 
 command from the 3WA wall box or via MQTT, making it a virtual jukebox. It will work without the 
 3WA wall box as a general-purpose MQTT control jukebox. It would be easy to expand its track selection
