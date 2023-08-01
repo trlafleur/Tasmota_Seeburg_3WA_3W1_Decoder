@@ -1,1 +1,1 @@
-This is a small 1.1 X 2.1in decoder for the Seeburg Jukebox wall box 3WA. It's designed to fit inside the unit and will send keys via Tasmota over MQTT to an external MP3 or equivalent player. It uses a small Seeed Studio XIAO ESP32S3 or Adafruit QT-ESP32S3 or equivalent processor.
+This is a small 1.1 X 2.1 inch decoder for the Seeburg Jukebox wall box 3WA. It's designed to fit inside the unit and will send keys via Tasmota over MQTT to an external MP3 or equivalent player. It uses a small Seeed Studio XIAO ESP32S3 or Adafruit QT-ESP32S3 or equivalent processor.
