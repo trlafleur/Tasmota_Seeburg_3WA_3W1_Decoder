@@ -163,8 +163,6 @@ end
         end
         
         print("MQTT_Index", MQTT_Index)
-        if (MQTT_Index > 200) MQTT_Index = 200 end   
-        if (MQTT_Index <  1)  MQTT_Index = 1   end
         self.queue(MQTT_Index) 
 
         return true
@@ -183,8 +181,6 @@ def xMiniPlay(topic, idx, strdata, bindata)
         var Index = int(sensor ['Wallbox']['Selection_Index'] )
 
         print("Index", Index)
-        if (Index > 200) Index = 200 end   
-        if (Index <  1)  Index = 1   end
         self.queue(Index) 
     return true
 end
@@ -244,7 +240,7 @@ end
 
         print("In Folder")
         
-        if  (strdata == nil)  return true end
+        if (strdata == nil)  return true end
         var MyFolder = int (strdata) 
         if (MyFolder > 25598)  MyFolder  = 257 end      # we use 257 at folder 1, track 1
         if (MyFolder < 257)    MyFolder  = 257 end
