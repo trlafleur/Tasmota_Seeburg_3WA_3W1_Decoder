@@ -362,15 +362,14 @@ end
                     return
                 end
             end
-        end 
-    
-        if (self.buf.size() == 0) return end                    # nothing to do, selection queue is empty
-        if (self.BusyFlag == 1)                                 # if not busy...
-            var NextTrack = self.buf.pop(0)                     # get next track from stack
-            self.play(NextTrack)                                # play it!
+ 
+            if (self.buf.size() == 0) return end                    # nothing to do, selection queue is empty
+            if (self.BusyFlag == 1)                                 # if not busy...
+                var NextTrack = self.buf.pop(0)                     # get next track from stack
+                self.play(NextTrack)                                # play it!
+            end
         end
-    end
-
+    end   # end of def every_second()
 
 end     # end of class SEEBURG_Driver : Driver
 
