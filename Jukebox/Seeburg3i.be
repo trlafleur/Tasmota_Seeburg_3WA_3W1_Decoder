@@ -65,7 +65,7 @@ class SEEBURG_DRIVER : Driver
     static buf = []
     static alpha = ["A", "B", "C", "D", "E", "F", "G", "H", "J", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "U", "V"]
     var BusyFlag                                          # 0 = busy
-    var RandomPlay
+    var AutoPlay
     var DelayCnt 
 
 #- *************************************** -#   
@@ -77,10 +77,10 @@ def init()
     tasmota.add_rule ("MP3Player",  /MyObj2 ->  self.process_MP3_busy(MyObj2) )
     
     self.BusyFlag    = 0                               #  0 = busy
-    self.RandomPlay  = false  
-    self.DelayCnt    = 0
+    self.AutoPlay    = false  
+    self.DelayCnt    = 5
 
-    mqtt.subscribe("RSF/JUKEBOX/Track",    /x1,x2,x3,x4 -> self.xtrack  (x1,x2,x3,x4))
+    mqtt.subscribe("RSF/JUKEBOX/Track",    /x1,x2,x3,x4 -> self.xtrack  (x1,x2,x3,x4))      #  These command are direct from MQTT
     mqtt.subscribe("RSF/JUKEBOX/Volume",   /x1,x2,x3,x4 -> self.xvolume (x1,x2,x3,x4))
     mqtt.subscribe("RSF/JUKEBOX/EQ",       /x1,x2,x3,x4 -> self.xeq     (x1,x2,x3,x4))
     mqtt.subscribe("RSF/JUKEBOX/DAC",      /x1,x2,x3,x4 -> self.xdac    (x1,x2,x3,x4))
@@ -90,7 +90,7 @@ def init()
     mqtt.subscribe("RSF/JUKEBOX/Play",     /x1,x2,x3,x4 -> self.xplay   (x1,x2,x3,x4))
     mqtt.subscribe("RSF/JUKEBOX/Stop",     /x1,x2,x3,x4 -> self.xstop   (x1,x2,x3,x4)) 
 
-    mqtt.subscribe("RSF/JUKEBOX/SENSOR",   /x1,x2,x3,x4 -> self.xMiniPlay   (x1,x2,x3,x4)) 
+    mqtt.subscribe("RSF/JUKEBOX/SENSOR",   /x1,x2,x3,x4 -> self.xMiniPlay   (x1,x2,x3,x4))  # this command come fron the Tasmota X123 hardware driver
 
     tasmota.cmd("MP3Volume 100")                       # set volume
     tasmota.cmd("MP3EQ 3")                             # set EQ
@@ -98,40 +98,49 @@ def init()
     self.buf.clear()                                   # flush the queue
 end
 
-#- *************************************** -# 
 
+#- *************************************** -# 
     def queue(index)
 
         # print ("In Queue")
 
         var MaxQueueSize = 32
 
-        if (index > 200) index = 200 end  
+        if (index > 200) index = 200 end                #  Set range limits
         if (index <  1)  index = 1   end
 
         if (index == 200)   
-            self.buf.clear()           
-            if (self.RandomPlay == true )  self.RandomPlay = false return end
-            self.RandomPlay = true 
+            self.buf.clear()                            # clear the current buffer         
+            if (self.AutoPlay == true )  
+                self.AutoPlay = false 
+                tasmota.cmd("MP3Reset")                 # Stop current play
+                print("AutoPlay Off")
+            else 
+                self.AutoPlay = true
+                print("AutoPlay On") 
+            end
             return            
         end
 
         if (index == 199)          
+            print ("Reset")
             tasmota.cmd("MP3Reset")
             self.buf.clear()           
-            self.RandomPlay = false
+            self.AutoPlay = false
             tasmota.cmd("MP3Volume 100") 
-            tasmota.cmd("MP3EQ 3")                             # set EQ     
-            return
+            tasmota.cmd("MP3EQ 3")                       # set EQ 
+            return    
         end
 
         # All other request...
-        self.RandomPlay = false                 
-        if (self.buf.size() >= MaxQueueSize) return  end     
-
-        # Add request to the queue
-        self.buf.push(index)                            
-        print ("Queue: ", self.buf)        
+        self.AutoPlay = false                 
+        if (self.buf.size() >= MaxQueueSize)
+            print("Max Queue") 
+        else
+            # Add request to the queue
+            self.buf.push(index)                            
+            print ("Queue: ", self.buf) 
+        end       
     end
 
 
@@ -145,26 +154,25 @@ end
 
         if  (strdata == nil)  return true end
 
-        if ((bindata[0] >= 0x30) && (bindata[0] <= 0x39))   # we have just a number         
-             MQTT_Index = int (strdata )
+        if ((bindata[0] >= 0x30) && (bindata[0] <= 0x39))                    # we have just a number         
+            MQTT_Index = int (strdata )
 
-        else                                                # we have an alpha + number
-        if ( ( (bindata[0] >= 0x41) && (bindata[0] <= 0x56) ) || ( (bindata[0] >= 0x61) && (bindata[0] <= 0x76) ) )  # we allow both cases  
-            if ( (bindata[0] == 0x49) || (bindata[0] == 0x4f) ) return true end     # Check for I and O  <-- not used
-            if ( (bindata[0] == 0x69) || (bindata[0] == 0x6f) ) return true end 
+        else                                                                 # we have an alpha + number
+            if ( ( (bindata[0] >= 0x41) && (bindata[0] <= 0x56) ) || ( (bindata[0] >= 0x61) && (bindata[0] <= 0x76) ) )  # we allow both cases  
+                if ( (bindata[0] == 0x49) || (bindata[0] == 0x4f) ) return true end     # Check for I and O  <-- not used
+                if ( (bindata[0] == 0x69) || (bindata[0] == 0x6f) ) return true end 
                 
-            MQTT_Index = int (bindata[0] & 0x1f )                   
-            if (MQTT_Index > 8)  MQTT_Index = MQTT_Index -1 end     # adjust for missing I                         
-            if (MQTT_Index > 13) MQTT_Index = MQTT_Index -1 end     # adjust for missing O       
-                var mynumber = int ( ( bindata [1] & 0x0f) )        # strip ASCII MSB to get a number     
+                MQTT_Index = int (bindata[0] & 0x1f )                   
+                if (MQTT_Index > 8)  MQTT_Index = MQTT_Index -1 end          # adjust for missing I                         
+                if (MQTT_Index > 13) MQTT_Index = MQTT_Index -1 end          # adjust for missing O       
+                var mynumber = int ( ( bindata [1] & 0x0f) )                 # strip ASCII MSB to get a number     
                 if (mynumber == 0) mynumber = 10 end       
                 MQTT_Index = ( (MQTT_Index -1) * 10 ) + mynumber                  
-            else return true end
-        end
+            end
+        end  # end of if-else
         
         print("MQTT_Index", MQTT_Index)
         self.queue(MQTT_Index) 
-
         return true
     end
       
@@ -196,6 +204,7 @@ end
         if (MyVolume > 100) MyVolume = 100 end
         if (MyVolume <  0)  MyVolume = 0   end
         var MyCmd = string.format("MP3Volume %u", int (MyVolume))
+        print(MyCmd)
         tasmota.cmd(MyCmd)                              # set volume
         return true
     end
@@ -298,7 +307,7 @@ end
 
         if  MyObj2 == nil print("Bad Obj2")     return end
         if !(MyObj2.contains('MP3Busy'))        return end
-        self.BusyFlag = real(MyObj2['MP3Busy'] )                # get busy flag from MP3 driver
+        self.BusyFlag = int (MyObj2['MP3Busy'] )                # get busy flag from MP3 driver
         return
     end
 
@@ -329,7 +338,6 @@ end
         print("In Play: ", Index)
 
         if (self.BusyFlag == 1)                                  # not busy = 1...
-
             Index = int (Index)
             var a = int (Index/10)
             var n = int (Index % 10)
@@ -353,22 +361,22 @@ end
        self.DelayCnt = self.DelayCnt + 1                            # delay between plays
        if ( self.DelayCnt >= 5)                                     # set at 5 second
             self.DelayCnt = 0
-            if (self.RandomPlay == true )                           # select a random track, range 1 -> 198      
+            if (self.AutoPlay == true )                             # select a random track, range 1 -> 198      
                 if (self.BusyFlag == 1)                             # if not busy...
                     math.srand( int (tasmota.rtc()['utc'] ))        # seed random number
                     var random = math.rand() % (198 + 1 - 1) + 1    # rand() % (Max + 1 - Min) + Min
                     print ("Playing Random Track:  ", random)
                     self.play(random)
-                    return
+                end
+            else
+            if (self.buf.size() == 0) return true end               # nothing to do, selection queue is empty
+                if (self.BusyFlag == 1)                             # if not busy...
+                    var NextTrack = self.buf.pop(0)                 # get next track from stack
+                    self.play(NextTrack)                            # play it!
                 end
             end
- 
-            if (self.buf.size() == 0) return end                    # nothing to do, selection queue is empty
-            if (self.BusyFlag == 1)                                 # if not busy...
-                var NextTrack = self.buf.pop(0)                     # get next track from stack
-                self.play(NextTrack)                                # play it!
-            end
         end
+    return true
     end   # end of def every_second()
 
 end     # end of class SEEBURG_Driver : Driver
