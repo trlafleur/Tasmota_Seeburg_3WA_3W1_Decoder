@@ -23,7 +23,7 @@
     23-Jul-2023  1.0g TRL - fixed mqtt_data return = true, number to mynumber
     26-Jul-2023  1.0h TRL - removed disconnected_MQTT() and connected_MQTT()
     28-Jul-2023  2.0h TRL - change method of mqtt.subscribe to full topic based
-    19-Sep-2023  3.0i TRL - This is a special version of the MP3 player code to support
+    22-Sep-2023  3.0i TRL - This is a special version of the MP3 player code to support
                             Mini-Decoder, decode /*/*/SENSOR messages for track information
 
     Notes:  1)  Tested with 13.1.0.3(tasmota)
@@ -183,17 +183,20 @@ def xMiniPlay(topic, idx, strdata, bindata)
     print("In xMiniPlay")
    
     import json
+    import string
     var sensor=json.load(strdata)
 
-    if !(sensor.contains('Wallbox' 'Selection_Index')) return end
-    print("111")
-    if  (sensor.contains ['Wallbox']['Selection_Index'] == nil) return end
-    print("222")
-        var Index = int(sensor ['Wallbox']['Selection_Index'] )
-
-        print("Index", Index)
-        self.queue(Index) 
+    if (sensor.contains('Wallbox') )
+        var sensor2 = sensor.item('Wallbox')
+        if (sensor2.contains('Selection_Index'))
+            var Index = sensor2.item('Selection_Index')
+            print("989", Index)
+            self.queue(Index)
+        else
+            print("Bad Opject", sensor) 
+        end
     return true
+    end
 end
 
 
@@ -347,7 +350,7 @@ end
             if (n == 0) a = a - 1 end                            # adjust for Seeburg odd number of 1-->0 (10)
             # print("a: ", a, " n: ", n)
             var alpha1 = string.format("%s%d", self.alpha[a], int (n) )
-            print ("Playing Track: ", Index, "-->", alpha1)
+            print ("Playing Track: ", Index, ":", alpha1)
 
             var MyCmd = string.format("MP3Track %u", int (Index))
             tasmota.cmd(MyCmd)
