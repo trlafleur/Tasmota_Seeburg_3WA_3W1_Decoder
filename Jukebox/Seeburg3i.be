@@ -183,20 +183,18 @@ def xMiniPlay(topic, idx, strdata, bindata)
     print("In xMiniPlay")
    
     import json
-    import string
-    var sensor=json.load(strdata)
+    var sensor = json.load(strdata)
 
     if (sensor.contains('Wallbox') )
         var sensor2 = sensor.item('Wallbox')
         if (sensor2.contains('Selection_Index'))
-            var Index = sensor2.item('Selection_Index')
-            print("989", Index)
+            var Index = int (sensor2.item('Selection_Index') )
             self.queue(Index)
         else
-            print("Bad Opject", sensor) 
+            print("Bad Object:", sensor) 
         end
-    return true
     end
+    return true
 end
 
 
