@@ -180,15 +180,19 @@ end
 #- *************************************** -# 
 def xMiniPlay(topic, idx, strdata, bindata)
 
-    print("In xMiniPlay")
+    #print("In xMiniPlay")
    
     import json
-    var sensor = json.load(strdata)
 
+    #print("strdata:",strdata)
+    var sensor = json.load(strdata)
+    if (sensor == nil)     print("JSON1:", sensor) return true end
+    #print("JSON:", sensor)
     if (sensor.contains('Wallbox') )
         var sensor2 = sensor.item('Wallbox')
         if (sensor2.contains('Selection_Index'))
             var Index = int (sensor2.item('Selection_Index') )
+            #print("Index:", Index)
             self.queue(Index)
         else
             #print("Bad Object:", sensor) 
