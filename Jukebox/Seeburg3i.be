@@ -191,7 +191,7 @@ def xMiniPlay(topic, idx, strdata, bindata)
             var Index = int (sensor2.item('Selection_Index') )
             self.queue(Index)
         else
-            print("Bad Object:", sensor) 
+            #print("Bad Object:", sensor) 
         end
     end
     return true
