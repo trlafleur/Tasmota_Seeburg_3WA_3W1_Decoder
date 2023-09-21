@@ -185,9 +185,9 @@ def xMiniPlay(topic, idx, strdata, bindata)
     import json
     var sensor=json.load(strdata)
 
-    if !(sensor.contains('Wallbox')) return end
+    if !(sensor.contains('Wallbox' 'Selection_Index')) return end
     print("111")
-    if  (sensor ['Wallbox']['Selection_Index'] == nil) return end
+    if  (sensor.contains ['Wallbox']['Selection_Index'] == nil) return end
     print("222")
         var Index = int(sensor ['Wallbox']['Selection_Index'] )
 
