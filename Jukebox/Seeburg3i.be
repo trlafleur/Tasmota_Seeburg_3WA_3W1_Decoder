@@ -186,6 +186,9 @@ def xMiniPlay(topic, idx, strdata, bindata)
     var sensor=json.load(strdata)
 
     if !(sensor.contains('Wallbox')) return end
+    print("111")
+    if  (sensor ['Wallbox']['Selection_Index'] == nil) return end
+    print("222")
         var Index = int(sensor ['Wallbox']['Selection_Index'] )
 
         print("Index", Index)
@@ -305,10 +308,10 @@ end
 #- *************************************** -# 
     def process_MP3_busy(MyObj2) 
 
-        if  MyObj2 == nil print("Bad Obj2")     return end
-        if !(MyObj2.contains('MP3Busy'))        return end
+        if  MyObj2 == nil print("Bad Obj2")     return false end
+        if !(MyObj2.contains('MP3Busy'))        return false end
         self.BusyFlag = int (MyObj2['MP3Busy'] )                # get busy flag from MP3 driver
-        return
+        return true
     end
 
 
