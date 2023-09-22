@@ -186,7 +186,7 @@ def xMiniPlay(topic, idx, strdata, bindata)
 
     #print("strdata:",strdata)
     var sensor = json.load(strdata)
-    if (sensor == nil)     print("JSON1:", sensor) return true end
+    if (sensor == nil)  return true end
     #print("JSON:", sensor)
     if (sensor.contains('Wallbox') )
         var sensor2 = sensor.item('Wallbox')
