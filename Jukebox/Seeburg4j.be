@@ -1,5 +1,5 @@
 
-# Seeburg3.be 
+# Seeburg4.be 
 #- 
    To run this file, compile Tasmota32 with the xsns_123 driver option
    Then Load the new binary image in your ESP32. Then add this Seeburg1.be to file system
@@ -25,7 +25,7 @@
     28-Jul-2023  2.0h TRL - change method of mqtt.subscribe to full topic based
     22-Sep-2023  3.0i TRL - This is a special version of the MP3 player code to support
                             Mini-Decoder, decode /*/*/SENSOR messages for track information
-    30-Sep-2023  3.0j TRL - Made changes to random play
+    30-Sep-2023  3.0j TRL - Made changes to random play, using millershuffle
 
     Notes:  1)  Tested with 13.1.0.3(tasmota)
         
@@ -69,6 +69,8 @@ class SEEBURG_DRIVER : Driver
     var BusyFlag                                          # 0 = busy
     var AutoPlay
     var DelayCnt 
+    var IndexCnt
+    var shuffleID
 
 #- *************************************** -#   
 def init()
@@ -81,6 +83,7 @@ def init()
     self.BusyFlag    = 0                               #  0 = busy
     self.AutoPlay    = false  
     self.DelayCnt    = 5
+    self.IndexCnt    = 0
 
     mqtt.subscribe("RSF/JUKEBOX/Track",    /x1,x2,x3,x4 -> self.xtrack  (x1,x2,x3,x4))      #  These command are direct from MQTT
     mqtt.subscribe("RSF/JUKEBOX/Volume",   /x1,x2,x3,x4 -> self.xvolume (x1,x2,x3,x4))
@@ -97,6 +100,9 @@ def init()
     tasmota.cmd("MP3Volume 100")                       # set volume
     tasmota.cmd("MP3EQ 4")                             # set EQ
     self.buf.clear()                                   # flush the queue
+
+    math.srand(tasmota.rtc()['local'])
+    self.shuffleID = math.rand()
 end
 
 
@@ -372,16 +378,9 @@ end
             self.DelayCnt = 0
             if (self.AutoPlay == true )                             # select a random track, range 1 -> 198      
                 if (self.BusyFlag == 1)                             # if not busy...
-
-                    var index_found = true
-                    var x1
-                    while (index_found)
-                        x1 = crypto.random(1)[0]
-                        if ( (x1 >= 1) && (x1 <= 198) )
-                            index_found = false
-                        end
-                    end
-
+                    self.IndexCnt = self.IndexCnt + 1
+                    if ( self.IndexCnt > 32000) self.IndexCnt = 0 end
+                    var x1 = (math.millershuffle(self.IndexCnt,self.shuffleID,197)+1)
                     print ("Playing Random Track:  ", x1)
                     self.play(x1)
                 end
