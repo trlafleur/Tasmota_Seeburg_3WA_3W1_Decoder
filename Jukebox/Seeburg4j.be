@@ -75,7 +75,7 @@ class SEEBURG_DRIVER : Driver
 #- *************************************** -#   
 def init()
     
-    print("In init")
+    print("In init, Ver: 4j")
 
     # tasmota.add_rule ("Wallbox",    /MyObj  ->  self.process_wallbox(MyObj) )
     tasmota.add_rule ("MP3Player",  /MyObj2 ->  self.process_MP3_busy(MyObj2) )
@@ -379,7 +379,10 @@ end
             if (self.AutoPlay == true )                             # select a random track, range 1 -> 198      
                 if (self.BusyFlag == 1)                             # if not busy...
                     self.IndexCnt = self.IndexCnt + 1
-                    if ( self.IndexCnt > 32000) self.IndexCnt = 0 end
+                    if ( self.IndexCnt > 198) 
+                        self.IndexCnt = 0 
+                        #self.shuffleID = math.rand()
+                    end
                     var x1 = (math.millershuffle(self.IndexCnt,self.shuffleID,197)+1)
                     print ("Playing Random Track:  ", x1)
                     self.play(x1)
