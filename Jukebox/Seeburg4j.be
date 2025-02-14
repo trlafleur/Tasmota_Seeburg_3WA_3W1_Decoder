@@ -25,7 +25,7 @@
     28-Jul-2023  2.0h TRL - change method of mqtt.subscribe to full topic based
     22-Sep-2023  3.0i TRL - This is a special version of the MP3 player code to support
                             Mini-Decoder, decode /*/*/SENSOR messages for track information
-    30-Sep-2023  3.0j TRL - Made changes to random play, using millershuffle
+    30-Sep-2023  4.0j TRL - Made changes to random play, using millershuffle
 
     Notes:  1)  Tested with 13.1.0.3(tasmota)
         
