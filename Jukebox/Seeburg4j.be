@@ -50,7 +50,9 @@
       This requires the Seeburg X123 decoder running under Tasmota if you have a Seeburg 3WA wallbox, 
       and the Tasmota MP3 driver greater than ver 12.0.3 of Tasmota
 
-   https://github.com/arendst/Tasmota/discussions/19624
+   Reference to Miller-Shuffle:
+      https://github.com/dkoneill/millershuffle_berry/blob/main/millershuffle.be
+      https://github.com/arendst/Tasmota/discussions/19624
  
 -#
 
