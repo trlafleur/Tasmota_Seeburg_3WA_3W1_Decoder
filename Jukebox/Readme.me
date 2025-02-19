@@ -11,8 +11,12 @@ and a 3WA decoder driver to be added to the Tasmota build. It also can be contro
    Reboot Tasmota, the autoexec.be will run after rebooting, it will wait for MQTT to be connected,
    then it will load the Seeburg1.be file.
    
-   Note: As above one must do a startup script that waits for MQTT to be started, prior to running this code...
+   Note: As above, one must write a startup script that waits for MQTT to be started before running this code.
       see: Seeburg1-autoexec.be
+
+   Reference to Miller-Shuffle:
+      https://github.com/dkoneill/millershuffle_berry/blob/main/millershuffle.be
+      https://github.com/arendst/Tasmota/discussions/19624
       
       xdrv_14_mp3.ino
          Changes were made to allow a GPIO connection from the MP3 module busy pin to expose it to Tasmota and Berry.

@@ -1,0 +1,930 @@
+Jukebox to Musiccast
+
+[
+    {
+        "id": "cead049e08ddd266",
+        "type": "tab",
+        "label": "Jukebox to MusicCast",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "8f56f07553084099",
+        "type": "debug",
+        "z": "cead049e08ddd266",
+        "name": "Payload",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 320,
+        "y": 100,
+        "wires": []
+    },
+    {
+        "id": "a18fa7a14d61a124",
+        "type": "mqtt in",
+        "z": "cead049e08ddd266",
+        "name": "Iot",
+        "topic": "RSF/JUKEBOX/#",
+        "qos": "0",
+        "datatype": "auto-detect",
+        "broker": "fe22307337055e57",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 90,
+        "y": 160,
+        "wires": [
+            [
+                "8f56f07553084099",
+                "85b73969c2fb302e",
+                "0a40ed84534db3ff"
+            ]
+        ]
+    },
+    {
+        "id": "85b73969c2fb302e",
+        "type": "function",
+        "z": "cead049e08ddd266",
+        "name": "Decode Request",
+        "func": "// We have two data format\n// RSF/JUKEBOX/Track/34\n// Obj: Wallbox.Selection_Index = 34\n\nvar msg1 = {};\n\nif (msg.topic == \"RSF/JUKEBOX/Track\") \n{\n    msg1.payload = msg.payload;\n    return msg1;\n}\n\n\nif (msg.payload && typeof msg.payload === \"object\" && msg.payload.Wallbox && msg.payload.Wallbox.hasOwnProperty(\"Selection_Index\"))\n{\n    msg1.payload = msg.payload.Wallbox.Selection_Index;\n    return msg1;\n}\nreturn;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 310,
+        "y": 160,
+        "wires": [
+            [
+                "1169a32428481ba4",
+                "5975aa3e3b1096bd"
+            ]
+        ]
+    },
+    {
+        "id": "1169a32428481ba4",
+        "type": "debug",
+        "z": "cead049e08ddd266",
+        "name": "debug 26",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 540,
+        "y": 160,
+        "wires": []
+    },
+    {
+        "id": "0a40ed84534db3ff",
+        "type": "debug",
+        "z": "cead049e08ddd266",
+        "name": "Topic",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "topic",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 310,
+        "y": 60,
+        "wires": []
+    },
+    {
+        "id": "6d1ec1c6165f83e2",
+        "type": "inject",
+        "z": "cead049e08ddd266",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 120,
+        "y": 340,
+        "wires": [
+            [
+                "5975aa3e3b1096bd"
+            ]
+        ]
+    },
+    {
+        "id": "5975aa3e3b1096bd",
+        "type": "musiccast-zone",
+        "z": "cead049e08ddd266",
+        "mc": "158aa175c7d80b4e",
+        "name": "Family Room",
+        "device": "418729e3-5f04-4786-9913-b270a9d3779e",
+        "type_device": "device",
+        "zone": "main",
+        "type_zone": "zone",
+        "command": "getStatus",
+        "type_command": "command",
+        "payload": "{}",
+        "type_payload": "json",
+        "f_show_status": true,
+        "x": 330,
+        "y": 340,
+        "wires": [
+            [
+                "1b939b066f0bc73a",
+                "d838107690c5d6ab"
+            ]
+        ]
+    },
+    {
+        "id": "1b939b066f0bc73a",
+        "type": "function",
+        "z": "cead049e08ddd266",
+        "name": "Test for correct settings",
+        "func": "\nvar msg1 = {};\n\nmsg1.payload = (msg.payload);\n\nif (msg1.payload.power != \"on\")\n{\n    msg1.payload = \"Turn On\";\n    node.send (msg1);\n}\n\nif (msg1.payload.input != \"v_aux\") {\n    msg1.payload = \"Turn On\";\n    node.send(msg1);\n}\n\nif (msg1.payload.sound_program != \"2ch_stereo\") {\n    msg1.payload = \"Turn On\";\n    node.send(msg1);\n}\n\nnode.done ();\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 570,
+        "y": 380,
+        "wires": [
+            [
+                "a3b08b4ea5acdcbb",
+                "cdfbfdea0834bd4d",
+                "e7f3ca5542fb3aa7",
+                "c8174a28fd1952d2",
+                "93f845e2d7721059",
+                "31bb5312a9a4b914",
+                "89f913fe04d00d5f"
+            ]
+        ]
+    },
+    {
+        "id": "cdfbfdea0834bd4d",
+        "type": "musiccast-zone",
+        "z": "cead049e08ddd266",
+        "mc": "06185435bba9d5ec",
+        "name": "",
+        "device": "418729e3-5f04-4786-9913-b270a9d3779e",
+        "type_device": "device",
+        "zone": "main",
+        "type_zone": "zone",
+        "command": "setPower",
+        "type_command": "command",
+        "payload": "{\"power\":\"on\"}",
+        "type_payload": "json",
+        "f_show_status": false,
+        "x": 940,
+        "y": 300,
+        "wires": [
+            [
+                "29116da7d1612c07"
+            ]
+        ]
+    },
+    {
+        "id": "a3b08b4ea5acdcbb",
+        "type": "debug",
+        "z": "cead049e08ddd266",
+        "name": "debug 35",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 940,
+        "y": 260,
+        "wires": []
+    },
+    {
+        "id": "29116da7d1612c07",
+        "type": "debug",
+        "z": "cead049e08ddd266",
+        "name": "debug 36",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1240,
+        "y": 380,
+        "wires": []
+    },
+    {
+        "id": "93f845e2d7721059",
+        "type": "musiccast-zone",
+        "z": "cead049e08ddd266",
+        "mc": "06185435bba9d5ec",
+        "name": "",
+        "device": "418729e3-5f04-4786-9913-b270a9d3779e",
+        "type_device": "device",
+        "zone": "main",
+        "type_zone": "zone",
+        "command": "setInput",
+        "type_command": "command",
+        "payload": "{\"input\":\"v_aux\"}",
+        "type_payload": "json",
+        "f_show_status": false,
+        "x": 940,
+        "y": 380,
+        "wires": [
+            [
+                "29116da7d1612c07"
+            ]
+        ]
+    },
+    {
+        "id": "31bb5312a9a4b914",
+        "type": "musiccast-zone",
+        "z": "cead049e08ddd266",
+        "mc": "06185435bba9d5ec",
+        "name": "",
+        "device": "418729e3-5f04-4786-9913-b270a9d3779e",
+        "type_device": "device",
+        "zone": "main",
+        "type_zone": "zone",
+        "command": "setSoundProgram",
+        "type_command": "command",
+        "payload": "{\"program\":\"2ch_stereo\"}",
+        "type_payload": "json",
+        "f_show_status": false,
+        "x": 970,
+        "y": 420,
+        "wires": [
+            [
+                "29116da7d1612c07"
+            ]
+        ]
+    },
+    {
+        "id": "d838107690c5d6ab",
+        "type": "debug",
+        "z": "cead049e08ddd266",
+        "name": "debug 39",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 520,
+        "y": 320,
+        "wires": []
+    },
+    {
+        "id": "e7f3ca5542fb3aa7",
+        "type": "musiccast-zone",
+        "z": "cead049e08ddd266",
+        "mc": "06185435bba9d5ec",
+        "name": "",
+        "device": "418729e3-5f04-4786-9913-b270a9d3779e",
+        "type_device": "device",
+        "zone": "main",
+        "type_zone": "zone",
+        "command": "setActualVolume",
+        "type_command": "command",
+        "payload": "{\"mode\":\"db\",\"value\":\"-20\"}",
+        "type_payload": "json",
+        "f_show_status": false,
+        "x": 970,
+        "y": 340,
+        "wires": [
+            [
+                "29116da7d1612c07"
+            ]
+        ]
+    },
+    {
+        "id": "c8174a28fd1952d2",
+        "type": "trigger",
+        "z": "cead049e08ddd266",
+        "name": "",
+        "op1": "",
+        "op2": "0",
+        "op1type": "nul",
+        "op2type": "str",
+        "duration": "6",
+        "extend": true,
+        "overrideDelay": false,
+        "units": "hr",
+        "reset": "",
+        "bytopic": "all",
+        "topic": "topic",
+        "outputs": 1,
+        "x": 310,
+        "y": 540,
+        "wires": [
+            [
+                "2f505a8971a281af"
+            ]
+        ]
+    },
+    {
+        "id": "45c8f7d5097c6606",
+        "type": "inject",
+        "z": "cead049e08ddd266",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 120,
+        "y": 540,
+        "wires": [
+            [
+                "c8174a28fd1952d2"
+            ]
+        ]
+    },
+    {
+        "id": "946504e40c7c5e37",
+        "type": "debug",
+        "z": "cead049e08ddd266",
+        "name": "debug 41",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 940,
+        "y": 540,
+        "wires": []
+    },
+    {
+        "id": "78ab317020aa447b",
+        "type": "musiccast-zone",
+        "z": "cead049e08ddd266",
+        "mc": "06185435bba9d5ec",
+        "name": "",
+        "device": "418729e3-5f04-4786-9913-b270a9d3779e",
+        "type_device": "device",
+        "zone": "main",
+        "type_zone": "zone",
+        "command": "setPower",
+        "type_command": "command",
+        "payload": "{\"power\":\"standby\"}",
+        "type_payload": "json",
+        "f_show_status": false,
+        "x": 940,
+        "y": 580,
+        "wires": [
+            [
+                "29116da7d1612c07"
+            ]
+        ]
+    },
+    {
+        "id": "54d1fd935b32ade8",
+        "type": "comment",
+        "z": "cead049e08ddd266",
+        "name": "This will turn off RX after x hr's if v_aux is selected",
+        "info": "",
+        "x": 610,
+        "y": 500,
+        "wires": []
+    },
+    {
+        "id": "11319c651c0d2dc2",
+        "type": "comment",
+        "z": "cead049e08ddd266",
+        "name": "This turns on RX, sets: input, mode and volume",
+        "info": "",
+        "x": 540,
+        "y": 280,
+        "wires": []
+    },
+    {
+        "id": "f61c4f43d19457f0",
+        "type": "comment",
+        "z": "cead049e08ddd266",
+        "name": "This decodes message from Jukebox",
+        "info": "",
+        "x": 310,
+        "y": 200,
+        "wires": []
+    },
+    {
+        "id": "265a004066b41e6b",
+        "type": "comment",
+        "z": "cead049e08ddd266",
+        "name": "Input from MQTT",
+        "info": "",
+        "x": 120,
+        "y": 80,
+        "wires": []
+    },
+    {
+        "id": "2f505a8971a281af",
+        "type": "musiccast-zone",
+        "z": "cead049e08ddd266",
+        "mc": "158aa175c7d80b4e",
+        "name": "Family Room",
+        "device": "418729e3-5f04-4786-9913-b270a9d3779e",
+        "type_device": "device",
+        "zone": "main",
+        "type_zone": "zone",
+        "command": "getStatus",
+        "type_command": "command",
+        "payload": "{}",
+        "type_payload": "json",
+        "f_show_status": true,
+        "x": 490,
+        "y": 540,
+        "wires": [
+            [
+                "96cb1f82533bb228",
+                "cda9299d9e0bc349"
+            ]
+        ]
+    },
+    {
+        "id": "96cb1f82533bb228",
+        "type": "function",
+        "z": "cead049e08ddd266",
+        "name": "Test for v-aux",
+        "func": "\nvar msg1 = {};\n\nmsg1.payload = (msg.payload);\n\nif (msg1.payload.input == \"v_aux\") \n{\n    msg1.payload = \"Turn Off\";\n    node.send (msg1);\n}\n\nreturn;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 680,
+        "y": 540,
+        "wires": [
+            [
+                "946504e40c7c5e37",
+                "78ab317020aa447b",
+                "efcfc1f151952cc4",
+                "b13090c07ea9e9b7",
+                "0a14dea85bc3190f"
+            ]
+        ]
+    },
+    {
+        "id": "cda9299d9e0bc349",
+        "type": "debug",
+        "z": "cead049e08ddd266",
+        "name": "debug 42",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 660,
+        "y": 580,
+        "wires": []
+    },
+    {
+        "id": "0c6a7ba56ced7406",
+        "type": "mqtt out",
+        "z": "cead049e08ddd266",
+        "name": "",
+        "topic": "RSF/JUKEBOX/EQ",
+        "qos": "0",
+        "retain": "",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "fe22307337055e57",
+        "x": 970,
+        "y": 120,
+        "wires": []
+    },
+    {
+        "id": "7bdbea169e4b36e0",
+        "type": "catch",
+        "z": "cead049e08ddd266",
+        "name": "",
+        "scope": null,
+        "uncaught": false,
+        "x": 780,
+        "y": 820,
+        "wires": [
+            [
+                "c02bac151ed58a9f",
+                "6ecb37bc9b651f53"
+            ]
+        ]
+    },
+    {
+        "id": "c02bac151ed58a9f",
+        "type": "debug",
+        "z": "cead049e08ddd266",
+        "name": "Payload",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 940,
+        "y": 820,
+        "wires": []
+    },
+    {
+        "id": "89f913fe04d00d5f",
+        "type": "change",
+        "z": "cead049e08ddd266",
+        "name": "Set EQ",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "1",
+                "tot": "num"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 780,
+        "y": 120,
+        "wires": [
+            [
+                "0c6a7ba56ced7406"
+            ]
+        ]
+    },
+    {
+        "id": "2ce74065ca72adc6",
+        "type": "comment",
+        "z": "cead049e08ddd266",
+        "name": "Set MP3 Player Equalizer",
+        "info": "",
+        "x": 650,
+        "y": 60,
+        "wires": []
+    },
+    {
+        "id": "efcfc1f151952cc4",
+        "type": "musiccast-zone",
+        "z": "cead049e08ddd266",
+        "mc": "06185435bba9d5ec",
+        "name": "",
+        "device": "418729e3-5f04-4786-9913-b270a9d3779e",
+        "type_device": "device",
+        "zone": "main",
+        "type_zone": "zone",
+        "command": "setSoundProgram",
+        "type_command": "command",
+        "payload": "{\"program\":\"spectacle\"}",
+        "type_payload": "json",
+        "f_show_status": false,
+        "x": 970,
+        "y": 620,
+        "wires": [
+            [
+                "29116da7d1612c07"
+            ]
+        ]
+    },
+    {
+        "id": "c426478daf99a595",
+        "type": "inject",
+        "z": "cead049e08ddd266",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 120,
+        "y": 580,
+        "wires": [
+            [
+                "2f505a8971a281af"
+            ]
+        ]
+    },
+    {
+        "id": "f5cb1cf7b67f2e7e",
+        "type": "musiccast-zone",
+        "z": "cead049e08ddd266",
+        "mc": "06185435bba9d5ec",
+        "name": "",
+        "device": "418729e3-5f04-4786-9913-b270a9d3779e",
+        "type_device": "device",
+        "zone": "main",
+        "type_zone": "zone",
+        "command": "",
+        "type_command": "msg",
+        "payload": "{\"type\":\"dolby_pl2x_movie\"}",
+        "type_payload": "json",
+        "f_show_status": false,
+        "x": 960,
+        "y": 660,
+        "wires": [
+            [
+                "29116da7d1612c07"
+            ]
+        ]
+    },
+    {
+        "id": "4479577819c85017",
+        "type": "function",
+        "z": "cead049e08ddd266",
+        "name": "Test for correct settings",
+        "func": "\nvar msg1 = {};\n\nmsg1.payload = (msg.payload);\n\nif (msg1.payload.power != \"on\")\n{\n    msg1.payload = \"Turn On\";\n    node.send ( [msg1, , ]);\n}\n\nif (msg1.payload.input != \"v_aux\") \n{\n    msg1.payload = \"Turn On\";\n    node.send([, msg1 ,]);\n}\n\nif (msg1.payload.sound_program != \"2ch_stereo\") \n{\n    msg1.payload = \"Turn On\";\n    node.send([, , msg1]);\n}\nnode.done ();",
+        "outputs": 3,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 170,
+        "y": 780,
+        "wires": [
+            [],
+            [],
+            []
+        ]
+    },
+    {
+        "id": "b13090c07ea9e9b7",
+        "type": "musiccast-zone",
+        "z": "cead049e08ddd266",
+        "mc": "06185435bba9d5ec",
+        "name": "",
+        "device": "418729e3-5f04-4786-9913-b270a9d3779e",
+        "type_device": "device",
+        "zone": "main",
+        "type_zone": "zone",
+        "command": "setActualVolume",
+        "type_command": "command",
+        "payload": "{\"mode\":\"db\",\"value\":\"-18\"}",
+        "type_payload": "json",
+        "f_show_status": false,
+        "x": 970,
+        "y": 700,
+        "wires": [
+            [
+                "29116da7d1612c07"
+            ]
+        ]
+    },
+    {
+        "id": "eea2a2fba713185c",
+        "type": "inject",
+        "z": "cead049e08ddd266",
+        "name": "",
+        "props": [
+            {
+                "p": "command",
+                "v": "\"setSurroundDecoderType:\"",
+                "vt": "json"
+            },
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "setSurroundDecoderType",
+        "payloadType": "str",
+        "x": 510,
+        "y": 660,
+        "wires": [
+            [
+                "f5cb1cf7b67f2e7e"
+            ]
+        ]
+    },
+    {
+        "id": "6ecb37bc9b651f53",
+        "type": "debug",
+        "z": "cead049e08ddd266",
+        "name": "Object",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 930,
+        "y": 860,
+        "wires": []
+    },
+    {
+        "id": "4495cd0429fa1af5",
+        "type": "mqtt out",
+        "z": "cead049e08ddd266",
+        "name": "",
+        "topic": "RSF/JUKEBOX/Track",
+        "qos": "0",
+        "retain": "",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "90a2ffb8.ae52e8",
+        "x": 980,
+        "y": 740,
+        "wires": []
+    },
+    {
+        "id": "0a14dea85bc3190f",
+        "type": "change",
+        "z": "cead049e08ddd266",
+        "name": "Set Stop",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "199",
+                "tot": "num"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 780,
+        "y": 740,
+        "wires": [
+            [
+                "4495cd0429fa1af5"
+            ]
+        ]
+    },
+    {
+        "id": "fe22307337055e57",
+        "type": "mqtt-broker",
+        "name": "iot.lafleur.us",
+        "broker": "iot.lafleur.us",
+        "port": "1883",
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "158aa175c7d80b4e",
+        "type": "musiccast-config",
+        "name": "Family Room-RX",
+        "device_list": {
+            "418729e3-5f04-4786-9913-b270a9d3779e": {
+                "name": "Family Room",
+                "address": "192.88.167.190",
+                "model": "RX-A2050",
+                "input_list": "{\"napster\":{\"id\":\"napster\"},\"siriusxm\":{\"id\":\"siriusxm\"},\"pandora\":{\"id\":\"pandora\"},\"spotify\":{\"id\":\"spotify\"},\"airplay\":{\"id\":\"airplay\"},\"mc_link\":{\"id\":\"mc_link\"},\"server\":{\"id\":\"server\"},\"net_radio\":{\"id\":\"net_radio\"},\"bluetooth\":{\"id\":\"bluetooth\"},\"usb\":{\"id\":\"usb\"},\"tuner\":{\"id\":\"tuner\"},\"av1\":{\"id\":\"av1\"},\"av2\":{\"id\":\"av2\"},\"av3\":{\"id\":\"av3\"},\"av4\":{\"id\":\"av4\"},\"av5\":{\"id\":\"av5\"},\"av6\":{\"id\":\"av6\"},\"av7\":{\"id\":\"av7\"},\"audio1\":{\"id\":\"audio1\"},\"audio2\":{\"id\":\"audio2\"},\"audio3\":{\"id\":\"audio3\"},\"phono\":{\"id\":\"phono\"},\"v_aux\":{\"id\":\"v_aux\"},\"main_sync\":{\"id\":\"main_sync\"}}",
+                "zone_list": "{\"main\":{\"id\":\"main\",\"input_list\":[\"napster\",\"siriusxm\",\"pandora\",\"spotify\",\"airplay\",\"mc_link\",\"server\",\"net_radio\",\"bluetooth\",\"usb\",\"tuner\",\"av1\",\"av2\",\"av3\",\"av4\",\"av5\",\"av6\",\"av7\",\"audio1\",\"audio2\",\"audio3\",\"phono\",\"v_aux\"],\"link_control_list\":[\"speed\",\"standard\",\"stability\"],\"link_audio_delay_list\":[\"audio_sync\",\"lip_sync\"],\"distribution\":{\"version\":2,\"compatible_client\":[2],\"client_max\":9,\"server_zone_list\":[\"main\"]},\"sound_program_list\":[\"munich\",\"vienna\",\"amsterdam\",\"freiburg\",\"royaumont\",\"chamber\",\"village_vanguard\",\"warehouse_loft\",\"cellar_club\",\"roxy_theatre\",\"bottom_line\",\"sports\",\"action_game\",\"roleplaying_game\",\"music_video\",\"recital_opera\",\"standard\",\"spectacle\",\"sci-fi\",\"adventure\",\"drama\",\"mono_movie\",\"2ch_stereo\",\"9ch_stereo\",\"surr_decoder\",\"straight\"]},\"zone2\":{\"id\":\"zone2\",\"input_list\":[\"napster\",\"siriusxm\",\"pandora\",\"spotify\",\"airplay\",\"mc_link\",\"server\",\"net_radio\",\"bluetooth\",\"usb\",\"tuner\",\"av1\",\"av2\",\"av3\",\"av4\",\"av5\",\"av6\",\"av7\",\"audio1\",\"audio2\",\"audio3\",\"phono\",\"v_aux\",\"main_sync\"],\"link_control_list\":[],\"link_audio_delay_list\":[],\"distribution\":{\"version\":2,\"compatible_client\":[2],\"client_max\":9,\"server_zone_list\":[\"main\"]},\"sound_program_list\":[]},\"zone3\":{\"id\":\"zone3\",\"input_list\":[\"napster\",\"siriusxm\",\"pandora\",\"spotify\",\"airplay\",\"mc_link\",\"server\",\"net_radio\",\"bluetooth\",\"usb\",\"tuner\",\"av1\",\"av2\",\"av3\",\"av4\",\"audio1\",\"audio2\",\"audio3\",\"phono\",\"v_aux\",\"main_sync\"],\"link_control_list\":[],\"link_audio_delay_list\":[],\"distribution\":{\"version\":2,\"compatible_client\":[2],\"client_max\":9,\"server_zone_list\":[\"main\"]},\"sound_program_list\":[]},\"zone4\":{\"id\":\"zone4\",\"input_list\":[\"av1\",\"av2\",\"av3\",\"av4\",\"av5\",\"av6\",\"av7\",\"v_aux\"],\"link_control_list\":[],\"link_audio_delay_list\":[],\"distribution\":{\"version\":2,\"compatible_client\":[2],\"client_max\":9,\"server_zone_list\":[\"main\"]},\"sound_program_list\":[]}}",
+                "serial": "05DCCAF3",
+                "udn": "uuid:9ab0c000-f668-11de-9976-00a0decf3df3",
+                "uuid": "418729e3-5f04-4786-9913-b270a9d3779e",
+                "status": "seen",
+                "mod_date": "2025-02-04T20:01:23.311Z"
+            }
+        },
+        "f_use_debug": true,
+        "f_blank_stale_status": false,
+        "list_language": "en",
+        "command_timeout": "2000",
+        "main": "Main",
+        "zone_2": "Zone 2",
+        "zone_3": "Zone 3",
+        "zone_4": "Zone 4",
+        "services_timeout": "5000"
+    },
+    {
+        "id": "06185435bba9d5ec",
+        "type": "musiccast-config",
+        "name": "Family Room-RX .190",
+        "device_list": {
+            "418729e3-5f04-4786-9913-b270a9d3779e": {
+                "name": "Family Room",
+                "address": "192.88.167.190",
+                "model": "RX-A2050",
+                "input_list": "{\"napster\":{\"id\":\"napster\"},\"siriusxm\":{\"id\":\"siriusxm\"},\"pandora\":{\"id\":\"pandora\"},\"spotify\":{\"id\":\"spotify\"},\"airplay\":{\"id\":\"airplay\"},\"mc_link\":{\"id\":\"mc_link\"},\"server\":{\"id\":\"server\"},\"net_radio\":{\"id\":\"net_radio\"},\"bluetooth\":{\"id\":\"bluetooth\"},\"usb\":{\"id\":\"usb\"},\"tuner\":{\"id\":\"tuner\"},\"av1\":{\"id\":\"av1\"},\"av2\":{\"id\":\"av2\"},\"av3\":{\"id\":\"av3\"},\"av4\":{\"id\":\"av4\"},\"av5\":{\"id\":\"av5\"},\"av6\":{\"id\":\"av6\"},\"av7\":{\"id\":\"av7\"},\"audio1\":{\"id\":\"audio1\"},\"audio2\":{\"id\":\"audio2\"},\"audio3\":{\"id\":\"audio3\"},\"phono\":{\"id\":\"phono\"},\"v_aux\":{\"id\":\"v_aux\"},\"main_sync\":{\"id\":\"main_sync\"}}",
+                "zone_list": "{\"main\":{\"id\":\"main\",\"input_list\":[\"napster\",\"siriusxm\",\"pandora\",\"spotify\",\"airplay\",\"mc_link\",\"server\",\"net_radio\",\"bluetooth\",\"usb\",\"tuner\",\"av1\",\"av2\",\"av3\",\"av4\",\"av5\",\"av6\",\"av7\",\"audio1\",\"audio2\",\"audio3\",\"phono\",\"v_aux\"],\"link_control_list\":[\"speed\",\"standard\",\"stability\"],\"link_audio_delay_list\":[\"audio_sync\",\"lip_sync\"],\"distribution\":{\"version\":2,\"compatible_client\":[2],\"client_max\":9,\"server_zone_list\":[\"main\"]},\"sound_program_list\":[\"munich\",\"vienna\",\"amsterdam\",\"freiburg\",\"royaumont\",\"chamber\",\"village_vanguard\",\"warehouse_loft\",\"cellar_club\",\"roxy_theatre\",\"bottom_line\",\"sports\",\"action_game\",\"roleplaying_game\",\"music_video\",\"recital_opera\",\"standard\",\"spectacle\",\"sci-fi\",\"adventure\",\"drama\",\"mono_movie\",\"2ch_stereo\",\"9ch_stereo\",\"surr_decoder\",\"straight\"]},\"zone2\":{\"id\":\"zone2\",\"input_list\":[\"napster\",\"siriusxm\",\"pandora\",\"spotify\",\"airplay\",\"mc_link\",\"server\",\"net_radio\",\"bluetooth\",\"usb\",\"tuner\",\"av1\",\"av2\",\"av3\",\"av4\",\"av5\",\"av6\",\"av7\",\"audio1\",\"audio2\",\"audio3\",\"phono\",\"v_aux\",\"main_sync\"],\"link_control_list\":[],\"link_audio_delay_list\":[],\"distribution\":{\"version\":2,\"compatible_client\":[2],\"client_max\":9,\"server_zone_list\":[\"main\"]},\"sound_program_list\":[]},\"zone3\":{\"id\":\"zone3\",\"input_list\":[\"napster\",\"siriusxm\",\"pandora\",\"spotify\",\"airplay\",\"mc_link\",\"server\",\"net_radio\",\"bluetooth\",\"usb\",\"tuner\",\"av1\",\"av2\",\"av3\",\"av4\",\"audio1\",\"audio2\",\"audio3\",\"phono\",\"v_aux\",\"main_sync\"],\"link_control_list\":[],\"link_audio_delay_list\":[],\"distribution\":{\"version\":2,\"compatible_client\":[2],\"client_max\":9,\"server_zone_list\":[\"main\"]},\"sound_program_list\":[]},\"zone4\":{\"id\":\"zone4\",\"input_list\":[\"av1\",\"av2\",\"av3\",\"av4\",\"av5\",\"av6\",\"av7\",\"v_aux\"],\"link_control_list\":[],\"link_audio_delay_list\":[],\"distribution\":{\"version\":2,\"compatible_client\":[2],\"client_max\":9,\"server_zone_list\":[\"main\"]},\"sound_program_list\":[]}}",
+                "serial": "05DCCAF3",
+                "udn": "uuid:9ab0c000-f668-11de-9976-00a0decf3df3",
+                "uuid": "418729e3-5f04-4786-9913-b270a9d3779e",
+                "status": "seen",
+                "mod_date": "2025-02-04T20:02:45.717Z"
+            }
+        },
+        "f_use_debug": true,
+        "f_blank_stale_status": false,
+        "list_language": "en",
+        "command_timeout": "2000",
+        "main": "Main",
+        "zone_2": "Zone 2",
+        "zone_3": "Zone 3",
+        "zone_4": "Zone 4",
+        "services_timeout": "5000"
+    },
+    {
+        "id": "90a2ffb8.ae52e8",
+        "type": "mqtt-broker",
+        "name": "iot.lafleur.us-Local",
+        "broker": "iot.lafleur.us",
+        "port": "1883",
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "compatmode": false,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    }
+]

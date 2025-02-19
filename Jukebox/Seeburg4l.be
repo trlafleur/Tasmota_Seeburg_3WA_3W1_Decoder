@@ -1,4 +1,3 @@
-
 # Seeburg4.be 
 #- 
    To run this file, compile Tasmota32 with the xsns_123 driver option
@@ -25,7 +24,9 @@
     28-Jul-2023  2.0h TRL - change method of mqtt.subscribe to full topic based
     22-Sep-2023  3.0i TRL - This is a special version of the MP3 player code to support
                             Mini-Decoder, decode /*/*/SENSOR messages for track information
-    30-Sep-2023  4.0j TRL - Made changes to random play, using millershuffle
+    30-Sep-2023  3.0j TRL - Made changes to random play, using miller-shuffle
+    11-Nov-2023  3.0k TRL - Change startup and song to song delay
+    17-Feb-2024  4.0l TRL - Removed autoplay toggle, added extend autoplay > 200 songs
 
     Notes:  1)  Tested with 13.1.0.3(tasmota)
         
@@ -49,10 +50,6 @@
 
       This requires the Seeburg X123 decoder running under Tasmota if you have a Seeburg 3WA wallbox, 
       and the Tasmota MP3 driver greater than ver 12.0.3 of Tasmota
-
-   Reference to Miller-Shuffle:
-      https://github.com/dkoneill/millershuffle_berry/blob/main/millershuffle.be
-      https://github.com/arendst/Tasmota/discussions/19624
  
 -#
 
@@ -79,15 +76,15 @@ class SEEBURG_DRIVER : Driver
 #- *************************************** -#   
 def init()
     
-    print("In init, Ver: 4j")
+    print("In init, Ver: 4l")
 
     # tasmota.add_rule ("Wallbox",    /MyObj  ->  self.process_wallbox(MyObj) )
     tasmota.add_rule ("MP3Player",  /MyObj2 ->  self.process_MP3_busy(MyObj2) )
     
-    self.BusyFlag    = 0                               #  0 = busy
-    self.AutoPlay    = false  
-    self.DelayCnt    = 5
-    self.IndexCnt    = 0
+    self.BusyFlag        = 0                               #  0 = busy
+    self.AutoPlay        = false  
+    self.DelayCnt        = 0
+    self.IndexCnt        = 0
 
     mqtt.subscribe("RSF/JUKEBOX/Track",    /x1,x2,x3,x4 -> self.xtrack  (x1,x2,x3,x4))      #  These command are direct from MQTT
     mqtt.subscribe("RSF/JUKEBOX/Volume",   /x1,x2,x3,x4 -> self.xvolume (x1,x2,x3,x4))
@@ -122,14 +119,14 @@ end
 
         if (index == 200)   
             self.buf.clear()                            # clear the current buffer         
-            if (self.AutoPlay == true )  
-                self.AutoPlay = false 
-                tasmota.cmd("MP3Reset")                 # Stop current play
-                print("AutoPlay Off")
-            else 
+            #if (self.AutoPlay == true )  
+                #self.AutoPlay = false 
+                #tasmota.cmd("MP3Reset")                 # Stop current play
+                #print("AutoPlay Off")
+            #else 
                 self.AutoPlay = true
                 print("AutoPlay On") 
-            end
+            #end
             return            
         end
 
@@ -138,6 +135,7 @@ end
             tasmota.cmd("MP3Reset")
             self.buf.clear()           
             self.AutoPlay = false
+            self.DelayCnt = 0
             tasmota.cmd("MP3Volume 100") 
             tasmota.cmd("MP3EQ 4")                       # set EQ 
             return    
@@ -358,12 +356,16 @@ end
 
         if (self.BusyFlag == 1)                                  # not busy = 1...
             Index = int (Index)
-            var a = int (Index/10)
-            var n = int (Index % 10)
-            if (n == 0) a = a - 1 end                            # adjust for Seeburg odd number of 1-->0 (10)
-            # print("a: ", a, " n: ", n)
-            var alpha1 = string.format("%s%d", self.alpha[a], int (n) )
-            print ("Playing Track: ", Index, ":", alpha1)
+            if (Index <= 198)
+            	var a = int (Index/10)
+            	var n = int (Index % 10)
+            	if (n == 0) a = a - 1 end                            # adjust for Seeburg odd number of 1-->0 (10)
+            	print("a: ", a, " n: ", n)
+            	var alpha1 = string.format("%s%d", self.alpha[a], int (n) )
+            	print ("Playing Track: ", Index, ":", alpha1)
+             else
+             	print ("Playing Track: ", Index)
+             end
 
             var MyCmd = string.format("MP3Track %u", int (Index))
             tasmota.cmd(MyCmd)
@@ -378,8 +380,8 @@ end
        # print ("In Every Second")
 
        self.DelayCnt = self.DelayCnt + 1                            # delay between plays
-       if ( self.DelayCnt >= 5)                                     # set at 5 second
-            self.DelayCnt = 0
+       if ( self.DelayCnt >= 15)                                    # set at 15 second on first play
+            self.DelayCnt = 8                                      # on next play, set delay to 7 sec (15-8)
             if (self.AutoPlay == true )                             # select a random track, range 1 -> 198      
                 if (self.BusyFlag == 1)                             # if not busy...
                     self.IndexCnt = self.IndexCnt + 1
@@ -387,7 +389,7 @@ end
                         self.IndexCnt = 0 
                         #self.shuffleID = math.rand()
                     end
-                    var x1 = (math.millershuffle(self.IndexCnt,self.shuffleID,197)+1)
+                    var x1 = (math.millershuffle(self.IndexCnt,self.shuffleID,1989)+1)
                     print ("Playing Random Track:  ", x1)
                     self.play(x1)
                 end
