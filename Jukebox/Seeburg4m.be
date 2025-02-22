@@ -41,10 +41,12 @@
    Then Load the new binary image in your ESP32 and re-boot it. 
    
    Open the web page for this device, select Console, then Manage File System,
-   then upload Seeburg4.be it to the ESP32 file system. Also upload the Seeburg1-autoexec.be,
-   and rename it to autoexec.be
+   then upload Seeburg4.be it to the ESP32 file system.
 
-   You will also need millershuffle.be installed in file ssytem
+   Also upload the Seeburg1-autoexec.be, and rename it to autoexec.be
+
+   You will also need millershuffle.be installed in file system.
+	https://github.com/dkoneill/millershuffle_berry/tree/main
    
    Reboot Tasmota, the autoexec.be will run after re-booting, it will wait for MQTT to be connected,
    then it will load the Seeburg4.be file.
