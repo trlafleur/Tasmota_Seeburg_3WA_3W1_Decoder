@@ -1,7 +1,8 @@
+
 # Seeburg4.be 
 #- 
    To run this file, compile Tasmota32 with the xsns_123 driver option
-   Then Load the new binary image in your ESP32. Then add this Seeburg1.be to file system
+   Then Load the new binary image in your ESP32. Then add this Seeburg4.be to file system
    and re-boot it. 
    See notes below on using autoexec.be
  -#
@@ -99,7 +100,7 @@ def init()
     mqtt.subscribe("RSF/JUKEBOX/SENSOR",   /x1,x2,x3,x4 -> self.xMiniPlay   (x1,x2,x3,x4))  # this command come fron the Tasmota X123 hardware driver
 
     tasmota.cmd("MP3Volume 100")                       # set volume
-    tasmota.cmd("MP3EQ 4")                             # set EQ
+    tasmota.cmd("MP3EQ 1")                             # set EQ
     self.buf.clear()                                   # flush the queue
 
     math.srand(tasmota.rtc()['local'])
@@ -137,7 +138,7 @@ end
             self.AutoPlay = false
             self.DelayCnt = 0
             tasmota.cmd("MP3Volume 100") 
-            tasmota.cmd("MP3EQ 4")                       # set EQ 
+            tasmota.cmd("MP3EQ 1")                       # set EQ 
             return    
         end
 
@@ -323,7 +324,7 @@ end
     def process_MP3_busy(MyObj2) 
 
         if  MyObj2 == nil print("Bad Obj2")     return false end
-        if !(MyObj2.contains('MP3Busy'))        return false end
+        if !(MyObj2.contains('MP3Busy'))  print("No MP3Busy")      return false end
         self.BusyFlag = int (MyObj2['MP3Busy'] )                # get busy flag from MP3 driver
         return true
     end
@@ -352,7 +353,7 @@ end
 #- *************************************** -#
     def play(Index)
 
-        print("In Play: ", Index)
+       # print("In Play: ", Index)
 
         if (self.BusyFlag == 1)                                  # not busy = 1...
             Index = int (Index)
@@ -360,7 +361,7 @@ end
             	var a = int (Index/10)
             	var n = int (Index % 10)
             	if (n == 0) a = a - 1 end                            # adjust for Seeburg odd number of 1-->0 (10)
-            	print("a: ", a, " n: ", n)
+            	#print("a: ", a, " n: ", n)
             	var alpha1 = string.format("%s%d", self.alpha[a], int (n) )
             	print ("Playing Track: ", Index, ":", alpha1)
              else
