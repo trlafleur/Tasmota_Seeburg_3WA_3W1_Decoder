@@ -30,7 +30,7 @@
     17-Feb-2024  4.0l TRL - Removed autoplay toggle, added extend autoplay > 200 songs
     22-Feb-2024  4.0m TRL - Move Miller-Shuffle to file system
 
-    Notes:  1)  Tested with Tasmona 13.1.0.3, 14.5.0.0
+    Notes:  1)  Tested with 13.1.0.3(tasmota) ,14.5.0.0
         
     ToDo:   1)
 
@@ -41,18 +41,14 @@
    Then Load the new binary image in your ESP32 and re-boot it. 
    
    Open the web page for this device, select Console, then Manage File System,
-   then upload Seeburg4.be it to the ESP32 file system.
-
-   Also upload the Seeburg1-autoexec.be, and rename it to autoexec.be
-
-   You will also need millershuffle.be installed in file system.
-	https://github.com/dkoneill/millershuffle_berry/tree/main
+   then upload Seeburg1.be it to the ESP32 file system. Also upload the Seeburg1-autoexec.be,
+   and rename it to autoexec.be
    
    Reboot Tasmota, the autoexec.be will run after re-booting, it will wait for MQTT to be connected,
-   then it will load the Seeburg4.be file.
+   then it will load the Seeburg1.be file.
    
    Note: one must do a startup scrip that waits for MQTT to be started, prior to running this code...
-      see: Seeburg4-autoexec.be
+      see: Seeburg1-autoexec.be
 
       This requires the Seeburg X123 decoder running under Tasmota if you have a Seeburg 3WA wallbox, 
       and the Tasmota MP3 driver greater than ver 12.0.3 of Tasmota
@@ -81,6 +77,8 @@ class SEEBURG_DRIVER : Driver
     var IndexCnt
     var shuffleID
     var MaxSongs
+    
+    #millershuffle.create(self.shuffleID, self.MaxSongs)
 
 #- *************************************** -#   
 def init()
@@ -94,8 +92,8 @@ def init()
     self.AutoPlay        = false  
     self.DelayCnt        = 0
     self.IndexCnt        = 0
-    self.MaxSongs         = 1898		# Max number of songs in playlist
-
+    self.MaxSongs        = 1897		# Max number of songs in playlist
+  
     mqtt.subscribe("RSF/JUKEBOX/Track",    /x1,x2,x3,x4 -> self.xtrack  (x1,x2,x3,x4))      #  These command are direct from MQTT
     mqtt.subscribe("RSF/JUKEBOX/Volume",   /x1,x2,x3,x4 -> self.xvolume (x1,x2,x3,x4))
     mqtt.subscribe("RSF/JUKEBOX/EQ",       /x1,x2,x3,x4 -> self.xeq     (x1,x2,x3,x4))
@@ -114,6 +112,9 @@ def init()
 
     math.srand(tasmota.rtc()['local'])
     self.shuffleID = math.rand()
+
+    millershuffle.create(self.shuffleID, self.MaxSongs)
+
 end
 
 
@@ -128,7 +129,7 @@ end
         if (index <  1)  index = 1   end
 
         if (index == 200)   
-            self.buf.clear()                            # clear the current buffer         
+            self.buf.clear()                            # clear the current buffer
             #if (self.AutoPlay == true )  
                 #self.AutoPlay = false 
                 #tasmota.cmd("MP3Reset")                 # Stop current play
@@ -400,11 +401,9 @@ end
                         #self.shuffleID = math.rand()
                     end
                     
-		    #var x1 = (math.millershuffle(self.IndexCnt,self.shuffleID,1989)+1)
-		    var ms = millershuffle.create(self.shuffleID, self.MaxSongs)
-		    var	x1 = ms.random(self.IndexCnt) + 1
-                    print ("Playing Random Track:  ", x1)
-                    self.play(x1)
+		var x1 = millershuffle.random(self.IndexCnt) + 1
+                print ("Playing Random Track:  ", x1)
+                self.play(x1)
                 end
             else
             if (self.buf.size() == 0) return true end               # nothing to do, selection queue is empty
