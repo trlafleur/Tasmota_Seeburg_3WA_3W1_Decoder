@@ -16,7 +16,7 @@ I had a number of ESP32 here running Tasmota, so I adapted his code for ESP32 un
 This was developed as a sensor under Tasmota, as pulses for the wall boxes are in the 30-50ms range and with a cycle time of ~2.1 seconds.
 
 I now use A1-->V8 for music selection.
-V10 selects autoplay random mode, and V9 resets the MP3 module.
+V0 selects autoplay random mode, and V9 resets the MP3 module.
 
 It was developed/tested under Tasmota 12.0.2 and updated to 13.0.0.3 under Visual Studio Code with PaltformIO.
 
