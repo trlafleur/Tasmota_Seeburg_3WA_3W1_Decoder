@@ -378,7 +378,7 @@ end
              	print ("Playing Track: ", Index)
             end
 
-            mqtt.publish("RSF/JUKEBOX2/Playing/", str(Index) )
+            mqtt.publish("RSF/JUKEBOX2/Playing", str(Index) )
 
             var MyCmd = string.format("MP3Track %u", int (Index))
             tasmota.cmd(MyCmd)
@@ -393,7 +393,7 @@ end
        # print ("In Every Second")
 
        self.DelayCnt = self.DelayCnt + 1                            # delay between plays
-       if ( self.DelayCnt >= 15)                                    # set at 15 second on first play
+       if ( self.DelayCnt >= 20)                                    # set at 20 second on first play
             self.DelayCnt = 8                                       # on next play, set delay to 7 sec (15-8)
             if (self.AutoPlay == true )                             # select a random track, range 1 -> 198      
                 if (self.BusyFlag == 1)                             # if not busy...
