@@ -378,7 +378,7 @@ end
              	print ("Playing Track: ", Index)
             end
 
-            mqtt.publish("RSF/JUKEBOX2/Playing", int(Index) )
+            mqtt.publish("RSF/JUKEBOX2/Playing", str(Index) )
 
             var MyCmd = string.format("MP3Track %u", int (Index))
             tasmota.cmd(MyCmd)
