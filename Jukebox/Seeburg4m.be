@@ -191,7 +191,7 @@ end
             end
         end  # end of if-else
         
-        print("MQTT_Track_Index", MQTT_Index)
+        print("MQTT_Track_Index:", MQTT_Index)
         self.queue(MQTT_Index) 
         return true
     end
@@ -378,7 +378,7 @@ end
              	print ("Playing Track: ", Index)
             end
 
-            mqtt.publish("RSF/JUKEBOX2/Playing", str(Index) )
+            mqtt.publish("RSF/JUKEBOX2/Playing/", str(Index) )
 
             var MyCmd = string.format("MP3Track %u", int (Index))
             tasmota.cmd(MyCmd)
