@@ -374,9 +374,11 @@ end
             	#print("a: ", a, " n: ", n)
             	var alpha1 = string.format("%s%d", self.alpha[a], int (n) )
             	print ("Playing Track: ", Index, ":", alpha1)
-             else
+            else
              	print ("Playing Track: ", Index)
-             end
+            end
+
+            mqtt.publish("RSF/JUKEBOX2/Playing", int(Index) )
 
             var MyCmd = string.format("MP3Track %u", int (Index))
             tasmota.cmd(MyCmd)
