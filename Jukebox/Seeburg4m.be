@@ -191,7 +191,7 @@ end
             end
         end  # end of if-else
         
-        print("MQTT_Track_Index", MQTT_Index)
+        print("MQTT_Track_Index:", MQTT_Index)
         self.queue(MQTT_Index) 
         return true
     end
@@ -370,13 +370,15 @@ end
             if (Index <= 198)
             	var a = int (Index/10)
             	var n = int (Index % 10)
-            	if (n == 0) a = a - 1 end                            # adjust for Seeburg odd number of 1-->0 (10)
+            	if (n == 0) a = a - 1 end                        # adjust for Seeburg odd number of 1-->0 (10)
             	#print("a: ", a, " n: ", n)
             	var alpha1 = string.format("%s%d", self.alpha[a], int (n) )
             	print ("Playing Track: ", Index, ":", alpha1)
-             else
+            else
              	print ("Playing Track: ", Index)
-             end
+            end
+
+            mqtt.publish("RSF/JUKEBOX2/Playing/", str(Index) )
 
             var MyCmd = string.format("MP3Track %u", int (Index))
             tasmota.cmd(MyCmd)
@@ -391,7 +393,7 @@ end
        # print ("In Every Second")
 
        self.DelayCnt = self.DelayCnt + 1                            # delay between plays
-       if ( self.DelayCnt >= 15)                                    # set at 15 second on first play
+       if ( self.DelayCnt >= 20)                                    # set at 20 second on first play
             self.DelayCnt = 8                                       # on next play, set delay to 7 sec (15-8)
             if (self.AutoPlay == true )                             # select a random track, range 1 -> 198      
                 if (self.BusyFlag == 1)                             # if not busy...
