@@ -370,7 +370,7 @@ end
             if (Index <= 198)
             	var a = int (Index/10)
             	var n = int (Index % 10)
-            	if (n == 0) a = a - 1 end                            # adjust for Seeburg odd number of 1-->0 (10)
+            	if (n == 0) a = a - 1 end                        # adjust for Seeburg odd number of 1-->0 (10)
             	#print("a: ", a, " n: ", n)
             	var alpha1 = string.format("%s%d", self.alpha[a], int (n) )
             	print ("Playing Track: ", Index, ":", alpha1)
@@ -378,7 +378,7 @@ end
              	print ("Playing Track: ", Index)
             end
 
-            mqtt.publish("RSF/JUKEBOX2/Playing", str(Index) )
+            mqtt.publish("RSF/JUKEBOX2/Playing/", str(Index) )
 
             var MyCmd = string.format("MP3Track %u", int (Index))
             tasmota.cmd(MyCmd)
