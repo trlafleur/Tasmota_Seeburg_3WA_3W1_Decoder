@@ -92,7 +92,7 @@ def init()
     self.AutoPlay        = false  
     self.DelayCnt        = 0
     self.IndexCnt        = 0
-    self.MaxSongs        = 1897		# Max number of songs in playlist
+    self.MaxSongs        = 1961		# Max number of songs in playlist
   
     mqtt.subscribe("RSF/JUKEBOX/Track",    /x1,x2,x3,x4 -> self.xtrack  (x1,x2,x3,x4))      #  These command are direct from MQTT
     mqtt.subscribe("RSF/JUKEBOX/Volume",   /x1,x2,x3,x4 -> self.xvolume (x1,x2,x3,x4))
